@@ -1,0 +1,54 @@
+@import "tailwindcss" theme(static);
+@import "@nuxt/ui";
+
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
+@theme static {
+  --font-newsreader: "Newsreader", serif;
+  --font-geist: "Geist", sans-serif;
+  --font-mono: "Geist Mono", sans-serif;
+  --font-code: "Fira Code", "JetBrains Mono", monospace;
+  --font-DM: "DM Serif Display", Georgia, serif;
+
+  --color-turso-50: oklch(0.97 0.088 174.3);
+  --color-turso-100: oklch(0.93 0.088 174.3);
+  --color-turso-200: oklch(0.87 0.162 174.3);
+  --color-turso-300: oklch(0.78 0.162 174.3);
+  --color-turso-400: oklch(0.66 0.162 174.3);
+  --color-turso-500: oklch(0.55 0.162 174.3);
+  --color-turso-600: oklch(0.47 0.162 174.3);
+  --color-turso-700: oklch(0.4 0.162 174.3);
+  --color-turso-800: oklch(0.33 0.162 174.3);
+  --color-turso-900: oklch(0.27 0.162 174.3);
+  --color-turso-950: oklch(0.2 0.118 174.3);
+}
+
+/* Scrollbar */
+* {
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: -ms-autohiding-scrollbar;
+  scrollbar-width: 6px;
+  scrollbar-color: transparent;
+}
+
+::-webkit-scrollbar {
+  height: 6px;
+  width: 2px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(128, 128, 128, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: rgba(128, 128, 128, 0.5);
+  border-radius: 3px;
+}
