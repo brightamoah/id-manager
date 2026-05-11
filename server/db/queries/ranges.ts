@@ -1,7 +1,7 @@
-import type { ConflictResult, NewAuditLog, RangeUsageStats } from "~~/shared/types";
+import type { ConflictResult, IdRange, NewAuditLog, NewIdAssignment, NewIdRange, RangeUsageStats } from "~~/shared/types";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "uncrypto";
-import { auditLog, idAssignments } from "../schema";
+import { auditLog, idAssignments, idRanges } from "../schema";
 
 export function useRangeQueries() {
   const { db } = useDB();
@@ -183,6 +183,57 @@ export function useRangeQueries() {
     return { valid: true, maxAssignedId };
   };
 
+  const updateRangeStatus = async (rangeId: string, newStatus: IdRange["status"]) => {
+    await db.update(idRanges)
+      .set({ status: newStatus })
+      .where(eq(idRanges.id, rangeId));
+  };
+
+  const createNewRange = async (data: NewIdRange) => {
+    const [newRange] = await db
+      .insert(idRanges)
+      .values({
+        ...data,
+      })
+      .returning();
+    return newRange;
+  };
+
+  const updateRange = async (rangeId: string, updates: Partial<NewIdRange>) => {
+    const [updated] = await db.update(idRanges)
+      .set(updates)
+      .where(eq(idRanges.id, rangeId))
+      .returning();
+    return updated;
+  };
+
+  const createAssignment = async (data: NewIdAssignment) => {
+    const [newAssignment] = await db
+      .insert(idAssignments)
+      .values({
+        ...data,
+      })
+      .returning();
+    return newAssignment;
+  };
+
+  const updateAssignment = async (assignmentId: string, updates: Partial<NewIdAssignment>) => {
+    const [updated] = await db
+      .update(idAssignments)
+      .set(updates)
+      .where(eq(idAssignments.id, assignmentId))
+      .returning();
+    return updated;
+  };
+
+  const updateAssignmentStatus = async (assignmentId: string, newStatus: NewIdAssignment["status"]) => {
+    const [updated] = await db.update(idAssignments)
+      .set({ status: newStatus })
+      .where(eq(idAssignments.id, assignmentId))
+      .returning();
+    return updated;
+  };
+
   return {
     getAllIdRanges,
     getRangeById,
@@ -194,5 +245,11 @@ export function useRangeQueries() {
     checkDuplicatedId,
     logAudit,
     validateRangeShrink,
+    updateRangeStatus,
+    updateRange,
+    createNewRange,
+    createAssignment,
+    updateAssignment,
+    updateAssignmentStatus,
   };
 }

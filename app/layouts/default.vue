@@ -4,7 +4,11 @@
 
 <template>
   <div>
-    <slot />
+    <AppNavbar />
+
+    <UMain class="bg-muted">
+      <slot />
+    </UMain>
   </div>
 </template>
 

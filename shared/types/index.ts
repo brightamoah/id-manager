@@ -1,3 +1,4 @@
+import type { ComputedOptions, ConcreteComponent, MethodOptions } from "vue";
 import type { accounts, auditLog, idAssignments, idRanges, syncMeta, syncQueue, users } from "~~/server/db/schema/index";
 import type { useDB } from "~~/server/utils/db";
 
@@ -34,6 +35,10 @@ export interface ConflictResult {
 
 export type DbForAudit = DB | Parameters<Parameters<DB["transaction"]>[0]>[0];
 
+export interface RangeWithStats extends IdRange {
+  stats: RangeUsageStats;
+}
+
 export interface OAuthProfile {
   id: string | number;
   email: string;
@@ -42,3 +47,35 @@ export interface OAuthProfile {
   avatarUrl?: string | null;
   accessToken: string;
 }
+
+export interface CardItem {
+  label: string;
+  value: number | string;
+  subText: string;
+  color: "success" | "primary" | "info" | "warning" | "error";
+  icon: string;
+}
+
+export type ColorType = "error" | "primary" | "secondary" | "success" | "info" | "warning" | "neutral";
+
+export type VariantType = "solid" | "outline" | "soft" | "subtle" | "ghost";
+
+export type SizeType = "xs" | "sm" | "md" | "lg" | "xl";
+
+export type ModalType = "confirm" | "delete" | "warning" | "info" | "success";
+
+export type EnvironmentType = "dev" | "test" | "prod";
+
+type AsyncDataRequestStatus = "idle" | "pending" | "success" | "error";
+
+interface AsyncDataExecuteOptions {
+  dedupe?: "cancel" | "defer";
+  timeout?: number;
+  signal?: AbortSignal;
+}
+
+export type Refresh = (opts?: AsyncDataExecuteOptions) => Promise<void>;
+export type Status = AsyncDataRequestStatus;
+
+// eslint-disable-next-line ts/no-empty-object-type
+export type ComponentType = string | ConcreteComponent<{}, any, any, ComputedOptions, MethodOptions, {}, any>;

@@ -56,7 +56,7 @@ const providers = computed<ButtonProps[]>(() => [
     description="Sign in to your account to continue"
     icon="i-lucide-lock"
     :ui="{
-      title: 'text-primary font-newsreader',
+      title: '',
       providers: 'space-y-6',
     }"
   />

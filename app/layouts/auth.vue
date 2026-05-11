@@ -9,7 +9,7 @@
       class="top-8 left-8 z-10 absolute rounded-full"
     /> -->
 
-    <UColorModeButton class="top-8 left-8 z-10 absolute rounded-full" />
+    <UColorModeButton class="top-8 right-8 z-10 absolute rounded-full cursor-pointer" />
 
     <UPageCard
       variant="subtle"

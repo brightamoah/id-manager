@@ -46,6 +46,8 @@ export const idRanges = sqliteTable("id_ranges", t => ({
   startId: t.integer().notNull(),
   endId: t.integer().notNull(),
   owner: t.text().notNull(),
+  publisher: t.text(),
+  environment: t.text({ enum: ["dev", "test", "prod"] }).notNull().default("dev"),
   status: t.text({ enum: ["active", "deprecated", "full"] })
     .notNull()
     .default("active"),
@@ -55,6 +57,8 @@ export const idRanges = sqliteTable("id_ranges", t => ({
 }), table => [
   index("idx_ranges_status").on(table.status),
   index("idx_ranges_owner").on(table.owner),
+  index("idx_ranges_publisher").on(table.publisher),
+  index("idx_ranges_environment").on(table.environment),
 ]);
 
 export const idAssignments = sqliteTable("id_assignments", t => ({
@@ -123,6 +127,7 @@ export const auditLog = sqliteTable(
     actorUserId: t.text().references(() => users.id, { onDelete: "set null" }),
     beforeState: t.text(),
     afterState: t.text(),
+    description: t.text(),
     createdAt: t.integer({ mode: "timestamp" }).default(sql`(strftime('%s', 'now'))`),
   }),
   table => [

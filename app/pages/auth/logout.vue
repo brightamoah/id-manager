@@ -28,11 +28,11 @@ onMounted(async () => {
       class="mx-auto mb-4 text-primary animate-spin"
     />
 
-    <h2 class="mb-2 font-semibold text-2xl">
+    <h2 class="mb-2 font-semibold text-xl">
       Logging Out...
     </h2>
 
-    <p class="text-muted">
+    <p class="text-muted text-sm text-center">
       You are being logged out of your account.
     </p>
   </div>

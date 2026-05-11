@@ -22,6 +22,6 @@ export default defineOAuthGoogleEventHandler({
 
   async onError(event, error) {
     console.error("GitHub OAuth error:", error);
-    return sendRedirect(event, "/");
+    return sendRedirect(event, "/?error=google");
   },
 });

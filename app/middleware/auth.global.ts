@@ -1,7 +1,9 @@
+import type { RouteLocationRaw } from "vue-router";
+
 export default defineNuxtRouteMiddleware((to) => {
   const { loggedIn } = useUserSession();
 
-  const publicRoutes = ["/"];
+  const publicRoutes: RouteLocationRaw[] = ["/", "/auth/logout"];
 
   if (to.path.startsWith("/api/"))
     return;
