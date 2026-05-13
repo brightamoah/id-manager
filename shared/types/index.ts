@@ -1,4 +1,5 @@
-import type { ComputedOptions, ConcreteComponent, MethodOptions } from "vue";
+import type { Table } from "@tanstack/vue-table";
+import type { ComputedOptions, ConcreteComponent, MethodOptions, Ref, ShallowRef, ShallowUnwrapRef } from "vue";
 import type { accounts, auditLog, idAssignments, idRanges, syncMeta, syncQueue, users } from "~~/server/db/schema/index";
 import type { useDB } from "~~/server/utils/db";
 
@@ -79,3 +80,13 @@ export type Status = AsyncDataRequestStatus;
 
 // eslint-disable-next-line ts/no-empty-object-type
 export type ComponentType = string | ConcreteComponent<{}, any, any, ComputedOptions, MethodOptions, {}, any>;
+
+export interface AssignmentDataResponse { assignments: IdAssignment[] }
+export interface RangeDataResponse { data: RangeWithStats[] }
+
+export type TableType<T> = Readonly<ShallowRef<ShallowUnwrapRef<{
+  tableRef: Ref<HTMLTableElement | null, HTMLTableElement | null>;
+  tableApi: Table<T>;
+}> | null>>;
+
+export type DataType<T> = Ref<T, T>;

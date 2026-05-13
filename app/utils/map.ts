@@ -13,3 +13,15 @@ export const objectTypeIcon: Record<string, string> = {
   PermissionSet: "i-lucide-shield",
   Other: "i-lucide-box",
 };
+
+export const assignmentStatusMap: Record<string, string> = {
+  in_use: "In Use",
+  released: "Released",
+  reserved: "Reserved",
+};
+
+export const assignmentStatusColor: Record<string, string> = {
+  in_use: "success",
+  released: "neutral",
+  reserved: "warning",
+};

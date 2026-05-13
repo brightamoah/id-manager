@@ -7,8 +7,38 @@ export function useAssignmentTable(
   ULink: ComponentType,
   UButton: ComponentType,
   getRangeName: (id: string) => string,
-  statusColor: (s: string) => string,
+  getRangeForAssignment: (rangeId: string) => IdRange | undefined,
+  refresh: Refresh,
 ) {
+  const toast = useToast();
+
+  const assignModal = ref(false);
+  const editingAssignment = ref<IdAssignment | null>(null);
+  const editingRange = ref<IdRange | null>(null);
+
+  function openEdit(a: IdAssignment) {
+    editingAssignment.value = a;
+    editingRange.value = getRangeForAssignment(a.rangeId) ?? null;
+    assignModal.value = true;
+  }
+
+  const releasingId = ref<string | null>(null);
+
+  async function release(a: IdAssignment) {
+    releasingId.value = a.id;
+    try {
+      await $fetch(`/api/assignments/${a.id}/release`, { method: "POST" });
+      toast.add({ title: `ID ${a.objectId} released`, color: "success" });
+      await refresh();
+    }
+    catch (err: any) {
+      toast.add({ title: "Error", description: err?.data?.message, color: "error" });
+    }
+    finally {
+      releasingId.value = null;
+    }
+  }
+
   const getRowItems = (row: Row<IdAssignment>) => {
     const assignment = row.original;
 
@@ -59,7 +89,7 @@ export function useAssignmentTable(
         return h("div", { class: "flex items-center gap-2" }, [
           h(UIcon, {
             name: objectTypeIcon[row.original.objectType],
-            class: "text-primary size-5",
+            class: "size-5",
           }),
           h("span", { class: "capitalize font-medium text-highlighted" }, row.original.objectType),
         ]);
@@ -85,26 +115,48 @@ export function useAssignmentTable(
       key: "status",
       header: "STATUS",
       cell: ({ row }) => h(UBadge, {
-        color: statusColor(row.original.status),
+        color: assignmentStatusColor[row.original.status],
         variant: "subtle",
         size: "md",
-      }, () => row.original.status),
+      }, () => assignmentStatusMap[row.original.status]),
     },
     {
       id: "actions",
       key: "actions",
       header: "ACTIONS",
-      cell: ({ row }) => h(UButton, {
-        size: "sm",
-        icon: "i-lucide-notebook-pen",
-        variant: "ghost",
-        disabled: row.original.status === "released",
-        onClick: () => {},
-      }),
+      cell: ({ row }) => h("div", { class: "flex items-center gap-2" }, [
+        h(UButton, {
+          size: "xs",
+          icon: "i-lucide-notebook-pen",
+          variant: "ghost",
+          disabled: row.original.status === "released",
+          class: "cursor-pointer",
+          ui: {
+            leadingIcon: "size-5",
+          },
+          onClick: () => openEdit(row.original),
+        }),
+        h(UButton, {
+          size: "xs",
+          icon: "i-lucide-archive",
+          variant: "ghost",
+          color: "error",
+          disabled: row.original.status === "released",
+          class: "cursor-pointer",
+          ui: {
+            leadingIcon: "size-5",
+          },
+          onClick: () => release(row.original),
+        }),
+      ]),
     },
   ]);
 
   return {
+    assignModal,
+    editingAssignment,
+    editingRange,
+    releasingId,
     columns,
     getRowItems,
   };
