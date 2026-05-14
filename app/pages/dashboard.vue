@@ -10,6 +10,8 @@ const { data: response, refresh, status } = await useFetch<{ data: RangeWithStat
   },
 });
 
+const { mapUserIdToName } = useUsers();
+
 const rangesWithStats = computed<RangeWithStats[]>(() => response.value?.data ?? []);
 
 const search = ref("");
@@ -25,7 +27,7 @@ const statusOptions = [
 const filtered = computed(() => {
   return rangesWithStats.value.filter((r) => {
     const q = search.value.toLowerCase();
-    const matchQ = !q || r.name.toLowerCase().includes(q) || r.owner.toLowerCase().includes(q);
+    const matchQ = !q || r.name.toLowerCase().includes(q) || mapUserIdToName.value[r.owner]?.toLowerCase().includes(q);
     const matchS = !statusFilter.value || r.status === statusFilter.value;
     return matchQ && matchS;
   });

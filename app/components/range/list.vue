@@ -1,10 +1,4 @@
 <script setup lang="ts">
-import type { IdRange, RangeUsageStats } from "~~/shared/types";
-
-interface RangeWithStats extends IdRange {
-  stats?: RangeUsageStats;
-}
-
 defineProps<{
   ranges: RangeWithStats[];
   loading: boolean;
@@ -39,7 +33,9 @@ defineEmits<{
     <RangeCard
       v-for="range in ranges"
       :key="range.id"
-      :range="range"
+      :progress-color="progressColor(range.stats.percentUsed, range.status)"
+      :range-badge-color="statusColor(range.status)"
+      :range
       :deprecating="deprecatingId === range.id"
       @edit="$emit('edit', range)"
       @deprecate="$emit('deprecate', range)"

@@ -11,6 +11,8 @@ const emit = defineEmits<{
   deprecate: [];
 }>();
 
+const { mapUserIdToName } = useUsers();
+
 const toast = useToast();
 const expanded = ref(false);
 const assignments = ref<IdAssignment[]>([]);
@@ -100,7 +102,7 @@ async function onAssignmentSaved() {
               name="i-lucide-users"
               class="size-4"
             />
-            {{ range.owner }}
+            {{ mapUserIdToName[range.owner] }}
           </span>
 
           <span

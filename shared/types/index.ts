@@ -1,3 +1,5 @@
+/// <reference lib="dom" />
+
 import type { Table } from "@tanstack/vue-table";
 import type { ComputedOptions, ConcreteComponent, MethodOptions, Ref, ShallowRef, ShallowUnwrapRef } from "vue";
 import type { accounts, auditLog, idAssignments, idRanges, syncMeta, syncQueue, users } from "~~/server/db/schema/index";
