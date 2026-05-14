@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const toast = useToast();
 const search = ref("");
 
 const tableComponent = useTemplateRef("table");
@@ -56,6 +57,22 @@ const filtered = computed(() => {
   return list;
 });
 
+const isNewModalOpen = ref(false);
+const targetRangeForNew = ref<IdRange | null>(null);
+
+function openNewAssignment() {
+  const ranges = rangesResponse.value?.data ?? [];
+  const defaultRange = ranges.find(r => r.status === "active") || ranges[0];
+
+  if (defaultRange) {
+    targetRangeForNew.value = defaultRange;
+    isNewModalOpen.value = true;
+  }
+  else {
+    toast.add({ title: "No ranges available", description: "Create a range first to assign IDs.", color: "error" });
+  }
+}
+
 function onSaved() {
   refresh();
 }
@@ -63,7 +80,7 @@ function onSaved() {
 
 <template>
   <div class="space-y-6 mx-auto px-4 py-8 max-w-6xl">
-    <AssignmentHeader />
+    <AssignmentHeader @create="openNewAssignment" />
 
     <AssignmentSearchFilter
       v-model:search="search"
@@ -73,13 +90,15 @@ function onSaved() {
       :type-items
     />
 
-    <AssignmentTable
-      ref="table"
-      :fetch-status
-      :assignments="filtered"
-      :ranges-response
-      :refresh
-    />
+    <UCard :ui="{ body: 'p-0' }">
+      <AssignmentTable
+        ref="table"
+        :fetch-status
+        :assignments="filtered"
+        :ranges-response
+        :refresh
+      />
+    </UCard>
 
     <div v-if="tableComponent?.editingRange">
       <AssignmentModal
@@ -87,6 +106,16 @@ function onSaved() {
         :range-id="tableComponent?.editingRange?.id"
         :range="tableComponent?.editingRange"
         :assignment="tableComponent?.editingAssignment"
+        @saved="onSaved"
+      />
+    </div>
+
+    <div v-if="targetRangeForNew">
+      <AssignmentModal
+        v-model:open="isNewModalOpen"
+        :range-id="targetRangeForNew.id"
+        :range="targetRangeForNew"
+        :assignment="null"
         @saved="onSaved"
       />
     </div>

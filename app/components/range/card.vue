@@ -1,10 +1,4 @@
 <script setup lang="ts">
-import type { ColorType, IdAssignment, IdRange, RangeUsageStats } from "~~/shared/types";
-
-interface RangeWithStats extends IdRange {
-  stats: RangeUsageStats;
-}
-
 const props = defineProps<{
   range: RangeWithStats;
   deprecating: boolean;
@@ -22,12 +16,14 @@ const expanded = ref(false);
 const assignments = ref<IdAssignment[]>([]);
 const loadingAssignments = ref(false);
 
+const tableComponent = useTemplateRef("table");
+
 async function toggleExpand() {
   expanded.value = !expanded.value;
   if (expanded.value && !assignments.value.length) {
     loadingAssignments.value = true;
     try {
-      const { data } = await useFetch<{ assignments: IdAssignment[] }>(`/api/assignments/${props.range.id}`, {
+      const { data } = await useFetch<AssignmentDataResponse>(`/api/assignments/${props.range.id}`, {
         getCachedData: (key, nuxtApp, ctx) => {
           if (ctx.cause === "refresh:manual" || ctx.cause === "refresh:hook") return undefined;
           return nuxtApp.payload.data[key] ?? nuxtApp.static.data[key];
@@ -47,7 +43,7 @@ async function toggleExpand() {
 
 async function refreshAssignments() {
   if (!expanded.value) return;
-  const { data } = await useFetch<{ assignments: IdAssignment[] }>(`/api/assignments/${props.range.id}`, {
+  const { data } = await useFetch<AssignmentDataResponse>(`/api/assignments/${props.range.id}`, {
     getCachedData: (key, nuxtApp, ctx) => {
       if (ctx.cause === "refresh:manual" || ctx.cause === "refresh:hook") return undefined;
       return nuxtApp.payload.data[key] ?? nuxtApp.static.data[key];
@@ -57,21 +53,13 @@ async function refreshAssignments() {
   assignments.value = data.value?.assignments ?? [];
 }
 
-
-function statusColor(s: string) {
-  return s === "in_use" ? "success" : s === "reserved" ? "info" : "neutral";
-}
-
 const assignModal = ref(false);
 const editingAssignment = ref<IdAssignment | null>(null);
+const prefilledObjectId = ref<number | undefined>(undefined);
 
 function openNewAssignment() {
   editingAssignment.value = null;
-  assignModal.value = true;
-}
-
-function openEditAssignment(a: IdAssignment) {
-  editingAssignment.value = a;
+  prefilledObjectId.value = undefined;
   assignModal.value = true;
 }
 
@@ -99,7 +87,7 @@ async function onAssignmentSaved() {
 
           <UBadge
             :color="rangeBadgeColor"
-            variant="soft"
+            variant="subtle"
             size="sm"
           >
             {{ range.status }}
@@ -201,43 +189,12 @@ async function onAssignmentSaved() {
         </div>
 
         <template v-else>
-          <div class="gap-2 grid grid-cols-[72px_1fr_110px_110px_90px_80px] bg-elevated px-4 py-2 font-mono text-[10px] text-muted uppercase tracking-wider">
-            <span>ID</span>
-
-            <span>Object Name</span>
-
-            <span>Type</span>
-
-            <span>Assigned To</span>
-
-            <span>Status</span>
-
-            <span>Actions</span>
-          </div>
-
-          <div
-            v-if="!assignments.length"
-            class="px-4 py-4 font-mono text-muted text-xs"
-          >
-            No assignments yet —
-            <UButton
-              variant="link"
-              size="xs"
-              class="underline cursor-pointer"
-              @click="openNewAssignment"
-            >
-              assign first ID
-            </UButton>
-          </div>
-
-          <AssignmentRow
-            v-for="a in assignments"
-            :key="a.id"
-            :assignment="a"
-            :icon="objectTypeIcon[a.objectType] ?? 'i-lucide-box'"
-            :status-color="statusColor(a.status)"
-            @edit="openEditAssignment(a)"
-            @released="refreshAssignments"
+          <AssignmentTable
+            ref="table"
+            :fetch-status="loadingAssignments ? 'pending' : 'success'"
+            :assignments="assignments"
+            :ranges-response="{ data: [range] }"
+            :refresh="refreshAssignments"
           />
 
           <div class="p-2 border-default border-t">
@@ -258,10 +215,20 @@ async function onAssignmentSaved() {
   <AssignmentModal
     v-model:open="assignModal"
     :range-id="range.id"
-    :range
+    :range="range"
     :assignment="editingAssignment"
     @saved="onAssignmentSaved"
   />
+
+  <div v-if="tableComponent?.editingRange">
+    <AssignmentModal
+      v-model:open="tableComponent.assignModal"
+      :range-id="tableComponent.editingRange.id"
+      :range="tableComponent.editingRange"
+      :assignment="tableComponent.editingAssignment"
+      @saved="onAssignmentSaved"
+    />
+  </div>
 </template>
 
 <style scoped>

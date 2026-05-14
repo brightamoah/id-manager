@@ -1,3 +1,4 @@
+import type { FormSubmitEvent } from "@nuxt/ui";
 import { acceptHMRUpdate, defineStore } from "pinia";
 
 export const useRangeStore = defineStore("rangeStore", () => {
@@ -11,7 +12,9 @@ export const useRangeStore = defineStore("rangeStore", () => {
     return {
       id: "",
       name: "",
-      owner: "",
+      publisher: "",
+      environment: undefined as EnvironmentType | undefined,
+      owner: undefined as string | undefined,
       startId: undefined as number | undefined,
       endId: undefined as number | undefined,
       description: "",
@@ -20,7 +23,9 @@ export const useRangeStore = defineStore("rangeStore", () => {
 
   const form = ref(defaultForm());
 
-  const modalTitle = computed(() => isEditing.value ? "Edit Range" : "New Range");
+  const modalTitle = computed(() => isEditing.value
+    ? "Edit Range"
+    : "New Range");
 
   function openCreate() {
     isEditing.value = false;
@@ -34,6 +39,8 @@ export const useRangeStore = defineStore("rangeStore", () => {
       id: range.id,
       name: range.name ?? "",
       owner: range.owner,
+      publisher: range.publisher ?? "",
+      environment: range.environment,
       startId: range.startId,
       endId: range.endId,
       description: range.description ?? "",
@@ -58,13 +65,15 @@ export const useRangeStore = defineStore("rangeStore", () => {
     }
   }
 
-  async function save(refresh: Refresh) {
-    if (!form.value.name || !form.value.owner || !form.value.startId || !form.value.endId) {
-      toast.add({ title: "Missing fields", description: "Name, owner, start and end ID are required.", color: "error" });
-      return;
-    }
+  async function save(event: FormSubmitEvent<RangeFormSchema>, refresh: Refresh) {
+    const data = event.data;
+
     if (form.value.startId! >= form.value.endId!) {
-      toast.add({ title: "Invalid bounds", description: "Start ID must be less than End ID.", color: "error" });
+      toast.add({
+        title: "Invalid bounds",
+        description: "Start ID must be less than End ID.",
+        color: "error",
+      });
       return;
     }
 
@@ -74,11 +83,13 @@ export const useRangeStore = defineStore("rangeStore", () => {
         await $fetch(`/api/ranges/${form.value.id}`, {
           method: "PATCH",
           body: {
-            name: form.value.name,
-            owner: form.value.owner,
-            startId: form.value.startId,
-            endId: form.value.endId,
-            description: form.value.description,
+            name: data.name,
+            owner: data.owner,
+            startId: data.startId,
+            endId: data.endId,
+            description: data.description,
+            publisher: data.publisher,
+            environment: data.environment,
           },
         });
         toast.add({ title: "Range updated", color: "success" });
@@ -87,11 +98,13 @@ export const useRangeStore = defineStore("rangeStore", () => {
         await $fetch("/api/ranges", {
           method: "POST",
           body: {
-            name: form.value.name,
-            owner: form.value.owner,
-            startId: form.value.startId,
-            endId: form.value.endId,
-            description: form.value.description,
+            name: data.name,
+            owner: data.owner,
+            startId: data.startId,
+            endId: data.endId,
+            description: data.description,
+            publisher: data.publisher,
+            environment: data.environment,
           },
         });
         toast.add({ title: "Range created", color: "success" });

@@ -3,6 +3,7 @@ const props = defineProps<{
   rangeId: string;
   range: IdRange;
   assignment?: IdAssignment | null;
+  prefilledObjectId?: number;
 }>();
 
 const emit = defineEmits<{
@@ -44,6 +45,8 @@ const statusItems = status.map(s => ({
   value: s,
 }));
 
+const { userOptions } = useUsers();
+
 const isEditing = computed(() => !!props.assignment?.id);
 const modalTitle = computed(() => isEditing.value ? "Edit Assignment" : "New Assignment");
 
@@ -63,8 +66,8 @@ const form = ref<{
   notes: "",
 });
 
-// Next ID suggestion
-const nextIdHint = ref<string>("");
+const nextAvailableId = ref<number | null>(null);
+const isRangeFull = ref<boolean>(false);
 const loadingNext = ref(false);
 
 async function fetchNextId() {
@@ -73,26 +76,87 @@ async function fetchNextId() {
     const res = await $fetch<{ nextAvailableId: number | null; isFull: boolean }>(
       `/api/ranges/${props.rangeId}/nextId`,
     );
-    if (res.isFull) {
-      nextIdHint.value = "↳ Range is full — no available IDs";
-    }
-    else {
-      nextIdHint.value = `↳ Next available ID: ${res.nextAvailableId}`;
-      if (!isEditing.value) {
-        form.value.objectId = res.nextAvailableId ?? undefined;
-      }
+
+    nextAvailableId.value = res.nextAvailableId;
+    isRangeFull.value = res.isFull;
+
+    if (!isEditing.value && res.nextAvailableId !== null && !res.isFull) {
+      form.value.objectId = res.nextAvailableId;
     }
   }
   catch {
-    nextIdHint.value = "";
+    nextAvailableId.value = null;
+    isRangeFull.value = false;
   }
   finally {
     loadingNext.value = false;
   }
 }
 
+const takenTypes = ref<string[]>([]);
+const loadingTaken = ref(false);
+
+async function checkTakenTypes(objectId: number | undefined) {
+  if (!objectId) {
+    takenTypes.value = [];
+    return;
+  }
+  loadingTaken.value = true;
+  try {
+    const all = await $fetch<{ assignments: IdAssignment[] }>(`/api/assignments`, {
+      query: {
+        rangeId: props.rangeId,
+        objectId,
+      },
+    });
+    takenTypes.value = (all.assignments ?? [])
+      .filter(a => a.status === "in_use" || a.status === "reserved")
+      .map(a => a.objectType);
+  }
+  catch {
+    takenTypes.value = [];
+  }
+  finally {
+    loadingTaken.value = false;
+  }
+}
+
+let takenTimer: ReturnType<typeof setTimeout>;
+
+watch(() => form.value.objectId, (val) => {
+  clearTimeout(takenTimer);
+  takenTimer = setTimeout(checkTakenTypes, 400, val);
+});
+
+const takenByOthers = computed(() =>
+  isEditing.value
+    ? takenTypes.value.filter(t => t !== props.assignment?.objectType)
+    : takenTypes.value,
+);
+
+const selectedTypeAlreadyTaken = computed(() =>
+  !!form.value.objectType
+  && takenByOthers.value.includes(form.value.objectType),
+);
+
+const freeTypes = computed<IdAssignment["objectType"][]>(() =>
+  OBJECT_TYPES.filter(t => !takenByOthers.value.includes(t)),
+);
+
+const showNextIdHint = computed(() =>
+  !isEditing.value
+  && !loadingNext.value
+  && (nextAvailableId.value !== null || isRangeFull.value),
+);
+
+const showTakenPanel = computed(() =>
+  !form.value.objectId
+  && (!loadingTaken.value || takenByOthers.value.length > 0),
+);
+
 watch(open, async (newVal) => {
   if (!newVal) return;
+
   if (props.assignment) {
     form.value = {
       objectId: props.assignment.objectId,
@@ -102,31 +166,57 @@ watch(open, async (newVal) => {
       status: props.assignment.status,
       notes: props.assignment.notes ?? "",
     };
-    nextIdHint.value = "";
+    await checkTakenTypes(props.assignment.objectId);
   }
   else {
     form.value = {
-      objectId: undefined,
+      objectId: props.prefilledObjectId ?? undefined,
       objectName: "",
       objectType: undefined,
       assignedTo: "",
       status: undefined,
       notes: "",
     };
-    await fetchNextId();
+    takenTypes.value = [];
+    nextAvailableId.value = null;
+    isRangeFull.value = false;
+
+    if (props.prefilledObjectId) {
+      await checkTakenTypes(props.prefilledObjectId);
+    }
+    else {
+      await fetchNextId();
+    }
   }
 }, { immediate: true });
 
 async function save() {
-  if (!form.value.objectId || !form.value.objectName || !form.value.assignedTo) {
-    toast.add({ title: "Missing fields", description: "Object ID, name and assignee are required.", color: "error" });
+  if (
+    !form.value.objectId
+    || !form.value.objectName
+    || !form.value.assignedTo
+  ) {
+    toast.add({
+      title: "Missing fields",
+      description: "Object ID, name and assignee are required.",
+      color: "error",
+    });
+    return;
+  }
+
+  if (selectedTypeAlreadyTaken.value) {
+    toast.add({
+      title: "Duplicate assignment",
+      description: `ID ${form.value.objectId} already has an active ${form.value.objectType} in this range.`,
+      color: "error",
+    });
     return;
   }
 
   saving.value = true;
   try {
     if (isEditing.value) {
-      await $fetch(`/api/assignments/${props.assignment!.id}`, {
+      const response = await $fetch(`/api/assignments/${props.assignment?.id}`, {
         method: "PATCH",
         body: {
           objectId: form.value.objectId,
@@ -137,10 +227,14 @@ async function save() {
           notes: form.value.notes,
         },
       });
-      toast.add({ title: "Assignment updated", color: "success" });
+      toast.add({
+        title: "Assignment updated",
+        description: `Assignment with ID ${response.assignment.id} updated`,
+        color: "success",
+      });
     }
     else {
-      await $fetch("/api/assignments", {
+      const response = await $fetch("/api/assignments", {
         method: "POST",
         body: {
           rangeId: props.rangeId,
@@ -152,7 +246,11 @@ async function save() {
           notes: form.value.notes,
         },
       });
-      toast.add({ title: "Assignment created", color: "success" });
+      toast.add({
+        title: "Assignment created",
+        description: `ID ${response.assignment.objectId} assigned to ${response.assignment.assignedTo}`,
+        color: "success",
+      });
     }
     emit("saved");
   }
@@ -190,9 +288,7 @@ async function save() {
 
           <span class="font-semibold text-default">{{ range.name }}</span>
 
-          <span class="text-toned">
-            ({{ range.startId }} - {{ range.endId }})
-          </span>
+          <span class="text-toned">({{ range.startId }} - {{ range.endId }})</span>
         </div>
 
         <div class="gap-3 grid grid-cols-2">
@@ -223,19 +319,101 @@ async function save() {
           </UFormField>
         </div>
 
+        <template v-if="showNextIdHint">
+          <p
+            v-if="nextAvailableId !== null"
+            class="-mt-2 font-mono text-muted text-xs"
+          >
+            ↳ Next ID with no assignments yet:
+            <span class="font-semibold text-highlighted">{{ nextAvailableId }}</span>
+          </p>
+
+          <p
+            v-else-if="isRangeFull"
+            class="-mt-2 font-mono text-warning text-xs"
+          >
+            ↳ All numeric IDs in this range have at least one active assignment.
+            You can still assign a new object type to an existing ID.
+          </p>
+        </template>
+
         <p
-          v-if="nextIdHint"
-          class="-mt-2 font-mono text-[11px]"
-          :class="nextIdHint.includes('full') ? 'text-warning-500' : 'text-muted'"
+          v-else-if="!isEditing && loadingNext"
+          class="flex items-center gap-1 -mt-2 font-mono text-muted text-xs"
         >
           <UIcon
-            v-if="loadingNext"
             name="i-lucide-loader"
-            class="text-xs animate-spin"
+            class="text-sm animate-spin"
           />
-          {{ nextIdHint }}
+          Finding next available ID…
         </p>
 
+        <div
+          v-if="showTakenPanel"
+          class="space-y-2 p-3 border border-default rounded-lg"
+        >
+          <div class="flex items-center gap-1.5">
+            <UIcon
+              v-if="loadingTaken"
+              name="i-lucide-loader"
+              class="text-muted text-base animate-spin"
+            />
+
+            <p class="font-mono font-semibold text-muted text-xs uppercase tracking-widest">
+              ID {{ form.objectId }} — types already assigned
+            </p>
+          </div>
+
+          <div
+            v-if="!loadingTaken"
+            class="flex flex-wrap gap-1.5"
+          >
+            <span
+              v-for="t in takenByOthers"
+              :key="t"
+              class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px]"
+              :class="t === form.objectType
+                ? 'bg-error-100 text-error-700 ring-1 ring-error-300'
+                : 'bg-elevated text-muted'"
+            >
+              <UIcon
+                name="i-lucide-lock"
+                class="text-sm"
+              />
+              {{ t }}
+            </span>
+          </div>
+
+          <template v-if="!loadingTaken">
+            <p
+              v-if="freeTypes.length"
+              class="font-mono text-muted text-xs"
+            >
+              Still available:
+              <span class="text-success">{{ freeTypes.join(', ') }}</span>
+            </p>
+
+            <p
+              v-else
+              class="font-mono text-warning text-xs"
+            >
+              All 13 object types are assigned to this ID.
+            </p>
+          </template>
+
+          <p
+            v-if="selectedTypeAlreadyTaken"
+            class="flex items-center gap-1 font-mono text-error text-xs"
+          >
+            <UIcon
+              name="i-lucide-triangle-alert"
+              class="text-sm"
+            />
+            {{ form.objectType }} is already active on ID {{ form.objectId }} — pick a different type.
+          </p>
+        </div>
+
+        <!-- Object Name -->
         <UFormField
           label="Object Name"
           required
@@ -252,8 +430,10 @@ async function save() {
             label="Assigned To"
             required
           >
-            <UInput
+            <USelectMenu
               v-model="form.assignedTo"
+              :items="userOptions"
+              value-key="value"
               placeholder="developer name"
               class="w-full font-mono"
             />
@@ -271,6 +451,7 @@ async function save() {
           </UFormField>
         </div>
 
+        <!-- Notes -->
         <UFormField label="Notes">
           <UTextarea
             v-model="form.notes"
@@ -292,7 +473,9 @@ async function save() {
 
         <UButton
           :loading="saving"
+          :disabled="selectedTypeAlreadyTaken"
           icon="i-lucide-check"
+          class="cursor-pointer"
           @click="save"
         >
           {{ isEditing ? 'Update' : 'Create Assignment' }}

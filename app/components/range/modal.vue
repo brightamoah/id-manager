@@ -1,20 +1,33 @@
 <script lang="ts" setup>
-defineProps<{
+import type { FormSubmitEvent } from "@nuxt/ui";
+
+const { isEditing } = defineProps<{
   modalTitle: string;
   saving: boolean;
   isEditing: boolean;
-  save: () => Promise<void>;
+}>();
+
+const emit = defineEmits<{
+  save: [payload: FormSubmitEvent<RangeFormSchema>];
 }>();
 
 const isOpen = defineModel("open", { default: false, required: true });
 
-const state = defineModel<Partial<CreateRangeInput>>("state", { required: true });
+const state = defineModel<Partial<RangeFormSchema>>("state", { required: true });
+
+const { userOptions } = useUsers();
 
 const environmentOptions = [
   { label: "Development", value: "dev" },
   { label: "Testing", value: "test" },
   { label: "Production", value: "prod" },
 ];
+
+const schema = computed(() => isEditing
+  ? updateRangeSchema
+  : createRangeSchema);
+
+const formRef = useTemplateRef("formRef");
 </script>
 
 <template>
@@ -26,9 +39,16 @@ const environmentOptions = [
     }"
   >
     <template #body>
-      <div class="space-y-4">
+      <UForm
+        ref="formRef"
+        :state
+        :schema
+        class="space-y-4"
+        @submit="emit('save', $event)"
+      >
         <div class="gap-3 grid grid-cols-2">
           <UFormField
+            name="name"
             label="Project / Extension Name"
             required
           >
@@ -40,6 +60,7 @@ const environmentOptions = [
           </UFormField>
 
           <UFormField
+            name="environment"
             label="Environment"
             required
           >
@@ -58,17 +79,24 @@ const environmentOptions = [
 
         <div class="gap-3 grid grid-cols-2">
           <UFormField
+            name="owner"
             label="Owner"
             required
           >
-            <UInput
+            <USelectMenu
               v-model="state.owner"
-              placeholder="e.g. Team Alpha"
-              class="w-full"
+              :items="userOptions!"
+              value-key="value"
+              placeholder="Select owner"
+              class="w-full cursor-pointer"
+              :ui="{
+                item: 'cursor-pointer',
+              }"
             />
           </UFormField>
 
           <UFormField
+            name="publisher"
             label="Publisher"
             required
           >
@@ -82,6 +110,7 @@ const environmentOptions = [
 
         <div class="gap-3 grid grid-cols-2">
           <UFormField
+            name="startId"
             label="Start ID"
             required
           >
@@ -94,6 +123,7 @@ const environmentOptions = [
           </UFormField>
 
           <UFormField
+            name="endId"
             label="End ID"
             required
           >
@@ -106,14 +136,17 @@ const environmentOptions = [
           </UFormField>
         </div>
 
-        <UFormField label="Description">
+        <UFormField
+          label="Description"
+          name="description"
+        >
           <UTextarea
             v-model="state.description"
             placeholder="Optional description…"
             class="w-full"
           />
         </UFormField>
-      </div>
+      </UForm>
     </template>
 
     <template #footer="{ close }">
@@ -131,7 +164,7 @@ const environmentOptions = [
           icon="i-lucide-check"
           :label=" isEditing ? 'Update Range' : 'Create Range'"
           class="cursor-pointer"
-          @click="save"
+          @click="formRef?.submit()"
         />
       </div>
     </template>

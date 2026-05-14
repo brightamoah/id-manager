@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { FormSubmitEvent } from "@nuxt/ui";
+
 const { data: response, refresh, status } = await useFetch<{ data: RangeWithStats[] }>("/api/ranges", {
   key: "ranges",
   default: () => ({ data: [] }),
@@ -90,8 +92,8 @@ const {
   save,
 } = store;
 
-async function saveItem() {
-  await save(refresh);
+async function saveItem(event: FormSubmitEvent<RangeFormSchema>) {
+  await save(event, refresh);
 }
 
 async function deprecateItem(range: RangeWithStats) {
@@ -207,7 +209,7 @@ const {
       :is-editing
       :saving
       :modal-title
-      :save="saveItem"
+      @save="saveItem($event)"
     />
   </UContainer>
 </template>

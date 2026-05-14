@@ -1,9 +1,9 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "c9598e8c-625e-4428-b287-1fcf676967ac",
+  "id": "16ba707f-430b-494c-9a32-6a055922cc29",
   "prevIds": [
-    "af7e98c7-9435-4b2d-8a84-8b2d22b49b1a"
+    "00000000-0000-0000-0000-000000000000"
   ],
   "ddl": [
     {
@@ -731,6 +731,21 @@
     },
     {
       "columns": [
+        "assignedTo"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "nameExplicit": false,
+      "name": "fk_id_assignments_assignedTo_users_id_fk",
+      "entityType": "fks",
+      "table": "id_assignments"
+    },
+    {
+      "columns": [
         "assignedBy"
       ],
       "tableTo": "users",
@@ -743,6 +758,21 @@
       "name": "fk_id_assignments_assignedBy_users_id_fk",
       "entityType": "fks",
       "table": "id_assignments"
+    },
+    {
+      "columns": [
+        "owner"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "SET NULL",
+      "nameExplicit": false,
+      "name": "fk_id_ranges_owner_users_id_fk",
+      "entityType": "fks",
+      "table": "id_ranges"
     },
     {
       "columns": [

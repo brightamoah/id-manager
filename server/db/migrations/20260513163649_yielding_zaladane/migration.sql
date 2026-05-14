@@ -19,6 +19,7 @@ CREATE TABLE `audit_log` (
 	`actorUserId` text,
 	`beforeState` text,
 	`afterState` text,
+	`description` text,
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	CONSTRAINT `fk_audit_log_actorUserId_users_id_fk` FOREIGN KEY (`actorUserId`) REFERENCES `users`(`id`) ON DELETE SET NULL
 );
@@ -36,6 +37,7 @@ CREATE TABLE `id_assignments` (
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
 	CONSTRAINT `fk_id_assignments_rangeId_id_ranges_id_fk` FOREIGN KEY (`rangeId`) REFERENCES `id_ranges`(`id`) ON DELETE CASCADE,
+	CONSTRAINT `fk_id_assignments_assignedTo_users_id_fk` FOREIGN KEY (`assignedTo`) REFERENCES `users`(`id`) ON DELETE SET NULL,
 	CONSTRAINT `fk_id_assignments_assignedBy_users_id_fk` FOREIGN KEY (`assignedBy`) REFERENCES `users`(`id`) ON DELETE SET NULL
 );
 --> statement-breakpoint
@@ -46,10 +48,13 @@ CREATE TABLE `id_ranges` (
 	`startId` integer NOT NULL,
 	`endId` integer NOT NULL,
 	`owner` text NOT NULL,
+	`publisher` text,
+	`environment` text DEFAULT 'dev' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
 	`createdBy` text NOT NULL,
 	`createdAt` integer DEFAULT (strftime('%s', 'now')),
 	`updatedAt` integer DEFAULT (strftime('%s', 'now')),
+	CONSTRAINT `fk_id_ranges_owner_users_id_fk` FOREIGN KEY (`owner`) REFERENCES `users`(`id`) ON DELETE SET NULL,
 	CONSTRAINT `fk_id_ranges_createdBy_users_id_fk` FOREIGN KEY (`createdBy`) REFERENCES `users`(`id`) ON DELETE SET NULL
 );
 --> statement-breakpoint
@@ -98,6 +103,8 @@ CREATE INDEX `idx_assignments_assigned_to` ON `id_assignments` (`assignedTo`);--
 CREATE INDEX `idx_assignments_range_object` ON `id_assignments` (`rangeId`,`objectId`,`status`);--> statement-breakpoint
 CREATE INDEX `idx_ranges_status` ON `id_ranges` (`status`);--> statement-breakpoint
 CREATE INDEX `idx_ranges_owner` ON `id_ranges` (`owner`);--> statement-breakpoint
+CREATE INDEX `idx_ranges_publisher` ON `id_ranges` (`publisher`);--> statement-breakpoint
+CREATE INDEX `idx_ranges_environment` ON `id_ranges` (`environment`);--> statement-breakpoint
 CREATE INDEX `idx_queue_sync_status` ON `sync_queue` (`syncStatus`);--> statement-breakpoint
 CREATE INDEX `idx_queue_entity` ON `sync_queue` (`entityType`,`entityId`);--> statement-breakpoint
 CREATE INDEX `idx_queue_device` ON `sync_queue` (`deviceId`);--> statement-breakpoint

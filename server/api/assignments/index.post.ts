@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
   }
 
   await validateIdBounds(rangeId, objectId);
-  await validateNoDuplicateActiveId(rangeId, objectId);
+  await validateNoDuplicateActiveId(rangeId, objectId, objectType);
 
   const assignmentStatus = status === "released" ? "released" : "in_use";
 
@@ -85,8 +85,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await updateRangeStatusIfNeeded(rangeId);
-
   await auditOperation({
     action: "assign",
     actor: user.role === "admin" ? "admin" : "user",
@@ -97,6 +95,8 @@ export default defineEventHandler(async (event) => {
     afterState: JSON.stringify(assignment),
     description: `ID ${objectId} assigned to ${assignedTo} by ${user.name || user.email} in range ${range.name} (${rangeId}) with status ${assignmentStatus}`,
   });
+
+  await updateRangeStatusIfNeeded(rangeId);
 
   return {
     assignment,

@@ -1,4 +1,4 @@
-import type { ConflictResult, IdRange, NewAuditLog, NewIdAssignment, NewIdRange, RangeUsageStats } from "~~/shared/types";
+import type { ConflictResult, IdAssignment, IdRange, NewAuditLog, NewIdAssignment, NewIdRange, RangeUsageStats } from "~~/shared/types";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { randomUUID } from "uncrypto";
 import { auditLog, idAssignments, idRanges } from "../schema";
@@ -46,6 +46,7 @@ export function useRangeQueries() {
       },
       columns: {
         objectId: true,
+        objectType: true,
       },
     });
   };
@@ -62,16 +63,31 @@ export function useRangeQueries() {
 
     const active = await getActiveAssignmentsForRange(rangeId);
 
-    const activeSet = new Set(active.map(a => a.objectId));
+    // ID's that have at least one active assignment of any type
+    const usedIds = new Set(active.map(a => a.objectId));
 
     for (let id = range.startId; id <= range.endId; id++) {
-      if (!activeSet.has(id))
+      if (!usedIds.has(id))
         return id;
     }
 
     return null;
   };
 
+  /**
+   *
+   * "used"     = distinct objectIds with at least one in_use or reserved row
+   *
+   * "released" = distinct objectIds where ALL rows are released (none active)
+   *
+   * "inUse"    = distinct objectIds that have at least one in_use row
+   *
+   * "reserved" = distinct objectIds that have at least one reserved row
+   *              but no in_use row
+   *
+   * percentUsed = used / total * 100
+   * isFull      = no numeric ID in [startId, endId] has zero active rows
+   */
   async function getRangeUsageStats(
     rangeId: string,
   ): Promise<RangeUsageStats> {
@@ -84,25 +100,45 @@ export function useRangeQueries() {
       });
     }
 
-    const assignments = await db.query.idAssignments.findMany({
+    const allAssignments = await db.query.idAssignments.findMany({
       where: { rangeId },
-      columns: { status: true },
+      columns: {
+        objectId: true,
+        status: true,
+      },
     });
 
     const total = range.endId - range.startId + 1 || 0;
-    const inUse = assignments?.filter(a => a.status === "in_use").length || 0;
-    const reserved = assignments?.filter(a => a.status === "reserved").length || 0;
-    const released = assignments?.filter(a => a.status === "released").length || 0;
-    const used = inUse + reserved || 0;
-    const percentUsed = total > 0 ? Math.round((used / total) * 100) : 0;
+
+    const groupedById = new Map<number, Set<IdAssignment["status"]>>();
+
+    for (const assignment of allAssignments) {
+      if (!groupedById.has(assignment.objectId)) {
+        groupedById.set(assignment.objectId, new Set());
+      }
+      groupedById.get(assignment.objectId)?.add(assignment.status);
+    }
+
+    let usedCount = 0;
+    let releasedCount = 0;
+
+    for (const [_, statuses] of groupedById) {
+      const hasActive = statuses.has("in_use") || statuses.has("reserved");
+
+      if (hasActive) usedCount++;
+
+      else if (statuses.has("released")) releasedCount++;
+    }
+
+    const percentUsed = total > 0 ? Math.round((usedCount / total) * 100) : 0;
     const nextAvailableId = await getNextAvailableId(rangeId);
 
     return {
       rangeId,
       total,
-      used,
-      released,
-      reserved,
+      used: usedCount,
+      released: releasedCount,
+      reserved: 0,
       percentUsed,
       nextAvailableId,
       isFull: nextAvailableId === null,
@@ -116,14 +152,10 @@ export function useRangeQueries() {
   ): Promise<ConflictResult> => {
     const conflicting = await db.query.idRanges.findMany({
       where: {
-        AND: [
-          {
-            status: "active",
-            startId: { lte: endId },
-            endId: { gte: startId },
-            ...(excludeRangeId && { id: { ne: excludeRangeId } }),
-          },
-        ],
+        status: "active",
+        startId: { lte: endId },
+        endId: { gte: startId },
+        ...(excludeRangeId && { id: { ne: excludeRangeId } }),
       },
     });
 
@@ -136,17 +168,17 @@ export function useRangeQueries() {
   const checkDuplicatedId = async (
     rangeId: string,
     objectId: number,
+    objectType: IdAssignment["objectType"],
     excludeAssignmentId?: string,
   ): Promise<boolean> => {
     const existing = await db.query.idAssignments.findFirst({
       where: {
         rangeId,
         objectId,
+        objectType,
         status: { in: ["in_use", "reserved"] },
         ...(excludeAssignmentId && { id: { ne: excludeAssignmentId } }),
-
       },
-
     });
 
     return !!existing;
@@ -227,11 +259,13 @@ export function useRangeQueries() {
   };
 
   const updateAssignmentStatus = async (assignmentId: string, newStatus: NewIdAssignment["status"]) => {
-    const [updated] = await db.update(idAssignments)
-      .set({ status: newStatus })
-      .where(eq(idAssignments.id, assignmentId))
-      .returning();
-    return updated;
+    return await db.transaction(async (tx) => {
+      const [updated] = await tx.update(idAssignments)
+        .set({ status: newStatus })
+        .where(eq(idAssignments.id, assignmentId))
+        .returning();
+      return updated;
+    });
   };
 
   return {

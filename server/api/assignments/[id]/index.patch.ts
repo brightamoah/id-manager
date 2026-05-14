@@ -71,9 +71,23 @@ export default defineEventHandler(async (event) => {
     objectType,
   } = body.data;
 
-  if (objectId != null && objectId !== existingAssignment.objectId) {
-    await validateIdBounds(existingAssignment.rangeId, objectId);
-    await validateNoDuplicateActiveId(existingAssignment.rangeId, objectId, assignmentId);
+  const effectiveObjectId = objectId ?? existingAssignment.objectId;
+  const effectiveObjectType = objectType ?? existingAssignment.objectType;
+
+  const idChanged = objectId != null && objectId !== existingAssignment.objectId;
+  const typeChanged = objectType != null && objectType !== existingAssignment.objectType;
+
+  if (idChanged || typeChanged) {
+    if (idChanged) {
+      await validateIdBounds(existingAssignment.rangeId, effectiveObjectId);
+    }
+
+    await validateNoDuplicateActiveId(
+      existingAssignment.rangeId,
+      effectiveObjectId,
+      effectiveObjectType,
+      assignmentId,
+    );
   }
 
   const updates: Record<string, unknown> = {};

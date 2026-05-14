@@ -14,10 +14,22 @@ const statusFilter = defineModel("statusFilter", { default: "", required: true }
     <UInput
       v-model="search"
       placeholder="Search by name, type, or assignee…"
-      icon="i-lucide-search"
+      leading-icon="i-lucide-search"
       size="lg"
       class="flex-1 min-w-48"
-    />
+    >
+      <template #trailing>
+        <UButton
+          v-if="search"
+          icon="i-lucide-x"
+          variant="ghost"
+          color="neutral"
+          size="sm"
+          class="sm:-mr-2 cursor-pointer"
+          @click="search = ''"
+        />
+      </template>
+    </UInput>
 
     <USelectMenu
       v-model="typeFilter"

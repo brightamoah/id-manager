@@ -45,7 +45,7 @@ export const idRanges = sqliteTable("id_ranges", t => ({
   description: t.text(),
   startId: t.integer().notNull(),
   endId: t.integer().notNull(),
-  owner: t.text().notNull(),
+  owner: t.text().notNull().references(() => users.id, { onDelete: "set null" }),
   publisher: t.text(),
   environment: t.text({ enum: ["dev", "test", "prod"] }).notNull().default("dev"),
   status: t.text({ enum: ["active", "deprecated", "full"] })
@@ -87,7 +87,7 @@ export const idAssignments = sqliteTable("id_assignments", t => ({
       ],
     },
   ).notNull(),
-  assignedTo: t.text().notNull(),
+  assignedTo: t.text().notNull().references(() => users.id, { onDelete: "set null" }),
   assignedBy: t.text().notNull().references(() => users.id, { onDelete: "set null" }),
   notes: t.text(),
   status: t.text({ enum: ["in_use", "released", "reserved"] })

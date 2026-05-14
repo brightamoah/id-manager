@@ -90,3 +90,22 @@ export type TableType<T> = Readonly<ShallowRef<ShallowUnwrapRef<{
 }> | null>>;
 
 export type DataType<T> = Ref<T, T>;
+
+export type Users = {
+  oauthAccounts: {
+    id: string;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+    userId: string;
+    username: string | null;
+    provider: "github" | "google";
+    providerUserId: string;
+  }[];
+  id: string;
+  name: string | null;
+  email: string;
+  avatarUrl: string | null;
+  role: "admin" | "developer";
+  createdAt: Date | null;
+  updatedAt: Date | null;
+}[];

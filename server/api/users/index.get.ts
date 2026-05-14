@@ -14,10 +14,10 @@ export default defineEventHandler(async (event) => {
 
   const users = await getAllUsers();
 
-  return {
-    data: users.map(({ accounts, ...u }) => ({
-      ...u,
-      oauthAccounts: accounts.map(({ accessToken, ...a }) => a),
-    })),
-  };
+  const userData = users.map(({ accounts, ...u }) => ({
+    ...u,
+    oauthAccounts: accounts.map(({ accessToken, ...a }) => a),
+  }));
+
+  return userData;
 });
