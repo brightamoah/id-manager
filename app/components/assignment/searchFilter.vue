@@ -10,13 +10,12 @@ const statusFilter = defineModel("statusFilter", { default: "", required: true }
 </script>
 
 <template>
-  <div class="flex flex-wrap gap-2">
+  <div class="gap-3 grid grid-cols-1 md:grid-cols-3">
     <UInput
       v-model="search"
       placeholder="Search by name, type, or assignee…"
       leading-icon="i-lucide-search"
       size="lg"
-      class="flex-1 min-w-48"
     >
       <template #trailing>
         <UButton
@@ -38,7 +37,7 @@ const statusFilter = defineModel("statusFilter", { default: "", required: true }
       value-key="value"
       label-key="label"
       size="lg"
-      class="w-40 sm:w-80 cursor-pointer"
+      class="cursor-pointer"
       clear
       :ui="{
         item: 'cursor-pointer',
@@ -52,7 +51,7 @@ const statusFilter = defineModel("statusFilter", { default: "", required: true }
       value-key="value"
       label-key="label"
       size="lg"
-      class="w-40 sm:w-50 cursor-pointer"
+      class="cursor-pointer"
       clear
       :ui="{
         item: 'cursor-pointer',

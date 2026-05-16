@@ -1,4 +1,8 @@
 <script setup lang="ts">
+defineProps<{
+  isMobile: boolean;
+}>();
+
 defineEmits<{
   create: [];
 }>();
@@ -11,18 +15,27 @@ defineEmits<{
         ID Ranges
       </h1>
 
-      <p class="text-muted text-sm">
+      <p
+        v-if="!isMobile"
+        class="text-muted text-sm"
+      >
         AL Object Registry - range management
       </p>
     </div>
 
     <UButton
-      icon="i-lucide-plus"
-      class="cursor-pointer"
+      class="flex text-center cursor-pointer"
       size="lg"
       @click="$emit('create')"
     >
-      New Range
+      <p class="flex justify-center items-center gap-2">
+        <UIcon
+          name="i-lucide-plus"
+          class="size-4 font-bold"
+        />
+
+        <span v-if="!isMobile">New Range</span>
+      </p>
     </UButton>
   </div>
 </template>

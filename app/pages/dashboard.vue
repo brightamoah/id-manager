@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from "@nuxt/ui";
 
+const isMobile = inject(isMobileKey, computed(() => false));
+
 const { data: response, refresh, status } = await useFetch<{ data: RangeWithStats[] }>("/api/ranges", {
   key: "ranges",
   default: () => ({ data: [] }),
@@ -123,7 +125,10 @@ const {
     v-auto-animate
     class="space-y-6 mx-auto py-8"
   >
-    <RangeHeader @click="openCreate" />
+    <RangeHeader
+      :is-mobile
+      @click="openCreate"
+    />
 
     <div class="gap-4 grid grid-cols-2 sm:grid-cols-4">
       <AppDashboardCard
@@ -163,6 +168,7 @@ const {
       />
 
       <AppRefresh
+        :is-mobile
         :can-resend
         :cool-down-time
         :refresh-is-loading

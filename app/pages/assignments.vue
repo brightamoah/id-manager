@@ -2,6 +2,8 @@
 const toast = useToast();
 const search = ref("");
 
+const isMobile = inject(isMobileKey, computed(() => false));
+
 const tableComponent = useTemplateRef("table");
 
 const tableRef = computed(() => tableComponent.value?.tableRef ?? null);
@@ -79,11 +81,14 @@ function onSaved() {
 </script>
 
 <template>
-  <div
+  <UContainer
     v-auto-animate
-    class="space-y-6 mx-auto px-4 py-8 max-w-6xl"
+    class="space-y-6 mx-auto px-4 py-8"
   >
-    <AssignmentHeader @create="openNewAssignment" />
+    <AssignmentHeader
+      :is-mobile
+      @create="openNewAssignment"
+    />
 
     <AssignmentSearchFilter
       v-model:search="search"
@@ -122,5 +127,5 @@ function onSaved() {
         @saved="onSaved"
       />
     </div>
-  </div>
+  </UContainer>
 </template>

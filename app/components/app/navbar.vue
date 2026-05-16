@@ -3,6 +3,8 @@ import type { NavigationMenuItem } from "@nuxt/ui";
 
 const route = useRoute();
 
+const isMobile = inject(isMobileKey, computed(() => false));
+
 const { user } = useUserSession();
 
 const userInitials = computed(() => generateInitials(user.value?.name ?? "User"));
@@ -53,7 +55,13 @@ const items = computed<NavigationMenuItem[]>(() => [
     />
 
     <template #right>
-      <UColorModeButton class="cursor-pointer" />
+      <UColorModeButton
+        variant="link"
+        class="cursor-pointer"
+        :ui="{
+          leadingIcon: 'size-6',
+        }"
+      />
 
       <UAvatar
         :src="avatar"
@@ -64,13 +72,21 @@ const items = computed<NavigationMenuItem[]>(() => [
       />
 
       <UButton
+        class="flex text-center cursor-pointer"
+        size="md"
         color="error"
-        variant="outline"
-        label="Logout"
-        class="cursor-pointer"
-        icon="i-lucide-log-out"
+        variant="subtle"
         :to="{ name: 'auth-logout' }"
-      />
+      >
+        <p class="flex justify-center items-center gap-2">
+          <UIcon
+            name="i-lucide-log-out"
+            class="size-4 font-bold"
+          />
+
+          <span v-if="!isMobile">Logout</span>
+        </p>
+      </UButton>
     </template>
 
     <template #body>
