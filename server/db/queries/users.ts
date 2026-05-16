@@ -13,7 +13,7 @@ export function useUserQueries() {
     actorUserId: id,
   });
 
-  async function getUserById(id: string): Promise<User | null> {
+  async function getUserById(id: string) {
     return (
       await db.query.users.findFirst({
         where: {
@@ -24,7 +24,7 @@ export function useUserQueries() {
     ) ?? null;
   }
 
-  async function getUserByEmail(email: string): Promise<User | null> {
+  async function getUserByEmail(email: string) {
     return (
       await db.query.users.findFirst({
         where: {
@@ -200,7 +200,11 @@ export function useUserQueries() {
       return updatedUser as User;
     }
 
-    let user = await getUserByEmail(profile.email);
+    let user = await db.query.users.findFirst({
+      where: {
+        email: profile.email,
+      },
+    });
 
     if (!user) {
       user = await createUser({

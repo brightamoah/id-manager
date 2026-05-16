@@ -102,7 +102,7 @@ async function onAssignmentSaved() {
               name="i-lucide-users"
               class="size-4"
             />
-            {{ mapUserIdToName[range.owner] }}
+            {{ mapUserIdToName[range.owner] || range.owner }}
           </span>
 
           <span

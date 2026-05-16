@@ -18,6 +18,10 @@ export type NewAuditLog = typeof auditLog.$inferInsert;
 export type SyncMeta = typeof syncMeta.$inferSelect;
 export type SyncQueueItem = typeof syncQueue.$inferSelect;
 
+export interface UserWithAccounts extends User {
+  accounts: Account[];
+}
+
 export type DB = ReturnType<typeof useDB>["db"];
 
 export interface RangeUsageStats {
@@ -111,3 +115,15 @@ export type Users = {
   createdAt: Date | null;
   updatedAt: Date | null;
 }[];
+
+export type NextIdStatus = "idle" | "loading" | "done";
+export type TakenStatus = "idle" | "loading" | "done";
+
+export interface OverlapConflict {
+  suggestedStartId: number;
+  conflictingRanges: {
+    name: string;
+    startId: number;
+    endId: number;
+  }[];
+}

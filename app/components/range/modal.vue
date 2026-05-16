@@ -1,14 +1,19 @@
 <script lang="ts" setup>
 import type { FormSubmitEvent } from "@nuxt/ui";
 
-const { isEditing } = defineProps<{
+const {
+  isEditing,
+  overlapConflict,
+} = defineProps<{
   modalTitle: string;
   saving: boolean;
   isEditing: boolean;
+  overlapConflict?: OverlapConflict | null;
 }>();
 
 const emit = defineEmits<{
   save: [payload: FormSubmitEvent<RangeFormSchema>];
+  clearOverlap: [];
 }>();
 
 const isOpen = defineModel("open", { default: false, required: true });
@@ -28,12 +33,22 @@ const schema = computed(() => isEditing
   : createRangeSchema);
 
 const formRef = useTemplateRef("formRef");
+
+function applySuggestion(suggestedStartId: number) {
+  state.value.startId = suggestedStartId;
+  emit("clearOverlap");
+}
+
+watch([() => state.value.startId, () => state.value.endId], () => {
+  if (overlapConflict) emit("clearOverlap");
+});
 </script>
 
 <template>
   <UModal
     v-model:open="isOpen"
     :title="modalTitle"
+    :dismissible="false"
     :ui="{
       footer: 'justify-end',
     }"
@@ -41,11 +56,56 @@ const formRef = useTemplateRef("formRef");
     <template #body>
       <UForm
         ref="formRef"
+        v-auto-animate
         :state
         :schema
         class="space-y-4"
         @submit="emit('save', $event)"
       >
+        <UAlert
+          v-if="overlapConflict"
+          color="error"
+          variant="soft"
+          icon="i-lucide-alert-triangle"
+          title="Range overlap detected"
+          class="mb-4"
+          orientation="horizontal"
+          :ui="{
+            icon: 'size-8',
+          }"
+        >
+          <template #description>
+            <p class="mb-2 text-sm">
+              The ID range you entered overlaps with
+              <template
+                v-for="(range, index) in overlapConflict.conflictingRanges"
+                :key="range.name"
+              >
+                <span class="font-semibold">{{ range.name }}</span>
+
+                <span class="font-mono font-bold"> ({{ range.startId }}–{{ range.endId }})</span>
+
+                <span v-if="index < overlapConflict.conflictingRanges.length - 1">, </span>
+              </template>.
+            </p>
+
+            <p class="mb-3 text-sm">
+              The next available start ID is
+              <span class="font-mono font-bold">{{ overlapConflict.suggestedStartId }}</span>.
+            </p>
+
+            <UButton
+              size="xs"
+              variant="subtle"
+              color="primary"
+              icon="i-lucide-arrow-right"
+              :label="`Use ${overlapConflict.suggestedStartId} as Start ID`"
+              class="cursor-pointer"
+              @click="applySuggestion(overlapConflict!.suggestedStartId)"
+            />
+          </template>
+        </UAlert>
+
         <div class="gap-3 grid grid-cols-2">
           <UFormField
             name="name"

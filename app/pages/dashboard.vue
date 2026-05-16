@@ -27,7 +27,9 @@ const statusOptions = [
 const filtered = computed(() => {
   return rangesWithStats.value.filter((r) => {
     const q = search.value.toLowerCase();
-    const matchQ = !q || r.name.toLowerCase().includes(q) || mapUserIdToName.value[r.owner]?.toLowerCase().includes(q);
+    const matchQ = !q
+      || r.name.toLowerCase().includes(q)
+      || mapUserIdToName.value[r.owner]?.toLowerCase().includes(q);
     const matchS = !statusFilter.value || r.status === statusFilter.value;
     return matchQ && matchS;
   });
@@ -85,6 +87,7 @@ const {
   deprecatingId,
   isEditing,
   saving,
+  overlapConflict,
 } = storeToRefs(store);
 
 const {
@@ -92,6 +95,7 @@ const {
   openEdit,
   deprecate,
   save,
+  clearOverlapConflict,
 } = store;
 
 async function saveItem(event: FormSubmitEvent<RangeFormSchema>) {
@@ -208,9 +212,11 @@ const {
     <RangeModal
       v-model:state="form"
       v-model:open="isOpen"
+      :overlap-conflict
       :is-editing
       :saving
       :modal-title
+      @clear-overlap="clearOverlapConflict"
       @save="saveItem($event)"
     />
   </UContainer>

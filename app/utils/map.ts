@@ -25,3 +25,19 @@ export const assignmentStatusColor: Record<string, string> = {
   released: "neutral",
   reserved: "warning",
 };
+
+export const OBJECT_TYPES: IdAssignment["objectType"][] = [
+  "Table",
+  "Page",
+  "Codeunit",
+  "Report",
+  "Enum",
+  "Query",
+  "XmlPort",
+  "TableExtension",
+  "PageExtension",
+  "EnumExtension",
+  "Interface",
+  "PermissionSet",
+  "Other",
+];

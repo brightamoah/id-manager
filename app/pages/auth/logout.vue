@@ -25,7 +25,7 @@ onMounted(async () => {
     <UIcon
       name="i-lucide-loader"
       size="48"
-      class="mx-auto mb-4 animate-spin"
+      class="mb-4 text-primary animate-spin"
     />
 
     <h2 class="mb-2 font-semibold text-xl">

@@ -6,6 +6,8 @@ export const useRangeStore = defineStore("rangeStore", () => {
   const isEditing = ref(false);
   const saving = ref(false);
 
+  const overlapConflict = ref<OverlapConflict | null>(null);
+
   const toast = useToast();
 
   function defaultForm() {
@@ -29,12 +31,14 @@ export const useRangeStore = defineStore("rangeStore", () => {
 
   function openCreate() {
     isEditing.value = false;
+    overlapConflict.value = null;
     form.value = defaultForm();
     isOpen.value = true;
   }
 
   function openEdit(range: RangeWithStats) {
     isEditing.value = true;
+    overlapConflict.value = null;
     form.value = {
       id: range.id,
       name: range.name ?? "",
@@ -46,6 +50,10 @@ export const useRangeStore = defineStore("rangeStore", () => {
       description: range.description ?? "",
     };
     isOpen.value = true;
+  }
+
+  function clearOverlapConflict() {
+    overlapConflict.value = null;
   }
 
   const deprecatingId = ref<string | null>(null);
@@ -76,7 +84,7 @@ export const useRangeStore = defineStore("rangeStore", () => {
       });
       return;
     }
-
+    overlapConflict.value = null;
     saving.value = true;
     try {
       if (isEditing.value) {
@@ -92,7 +100,14 @@ export const useRangeStore = defineStore("rangeStore", () => {
             environment: data.environment,
           },
         });
-        toast.add({ title: "Range updated", color: "success" });
+        toast.add({
+          title: "Range updated",
+          description: `Range "${data.name}" has been updated.`,
+          color: "success",
+        });
+
+        isOpen.value = false;
+        await refresh();
       }
       else {
         await $fetch("/api/ranges", {
@@ -107,17 +122,39 @@ export const useRangeStore = defineStore("rangeStore", () => {
             environment: data.environment,
           },
         });
-        toast.add({ title: "Range created", color: "success" });
+        toast.add({
+          title: "Range created",
+          description: `Range "${data.name}" has been created.`,
+          color: "success",
+        });
       }
       isOpen.value = false;
       await refresh();
     }
-    catch (err: any) {
-      toast.add({
-        title: "Error",
-        description: err?.data?.message ?? "Something went wrong.",
-        color: "error",
-      });
+    catch (error: any) {
+      const errorData = error?.data;
+      console.log(errorData.statusCode);
+      console.log(errorData.data.code);
+
+      if (errorData?.statusCode === 409 && errorData?.data?.code === "RANGE_OVERLAP") {
+        overlapConflict.value = {
+          suggestedStartId: errorData.data.suggestedStartId,
+          conflictingRanges: errorData.data.conflictingRanges ?? [],
+        };
+
+        toast.add({
+          title: "Range overlap",
+          description: `The specified ID range overlaps with existing ranges.`,
+          color: "error",
+        });
+      }
+      else {
+        toast.add({
+          title: "Error",
+          description: errorData?.message ?? "Something went wrong.",
+          color: "error",
+        });
+      }
     }
     finally {
       saving.value = false;
@@ -130,10 +167,12 @@ export const useRangeStore = defineStore("rangeStore", () => {
     deprecatingId,
     saving,
     isEditing,
+    overlapConflict,
     openCreate,
     openEdit,
     deprecate,
     save,
+    clearOverlapConflict,
   };
 });
 

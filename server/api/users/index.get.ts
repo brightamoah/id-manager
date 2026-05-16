@@ -1,18 +1,20 @@
+import type { UserWithAccounts } from "~~/shared/types";
 import { useUserQueries } from "~~/server/db/queries";
 
 export default defineEventHandler(async (event) => {
   const session = await requireUserSession(event);
 
-  if (session.user.role !== "admin") {
-    throw createError({
-      statusCode: 403,
-      message: "Forbidden - you do not have permission to access this resource",
-    });
-  }
+  const { getAllUsers, getUserById } = useUserQueries();
 
-  const { getAllUsers } = useUserQueries();
+  const currentUser = session.user.role === "admin"
+    ? null
+    : await getUserById(session.user.id);
 
-  const users = await getAllUsers();
+  const users: UserWithAccounts[] = session.user.role === "admin"
+    ? await getAllUsers()
+    : currentUser
+      ? [currentUser]
+      : [];
 
   const userData = users.map(({ accounts, ...u }) => ({
     ...u,

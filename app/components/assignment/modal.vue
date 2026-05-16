@@ -16,22 +16,6 @@ const open = defineModel("open", { default: false, required: true });
 const toast = useToast();
 const saving = ref(false);
 
-const OBJECT_TYPES: IdAssignment["objectType"][] = [
-  "Table",
-  "Page",
-  "Codeunit",
-  "Report",
-  "Enum",
-  "Query",
-  "XmlPort",
-  "TableExtension",
-  "PageExtension",
-  "EnumExtension",
-  "Interface",
-  "PermissionSet",
-  "Other",
-];
-
 const objectTypeItems = OBJECT_TYPES.map(t => ({ label: t, value: t }));
 
 const status: IdAssignment["status"][] = [
@@ -45,9 +29,10 @@ const statusItems = status.map(s => ({
   value: s,
 }));
 
-const { userOptions } = useUsers();
+const { userOptions, mapUserIdToName } = useUsers();
 
 const isEditing = computed(() => !!props.assignment?.id);
+
 const modalTitle = computed(() => isEditing.value ? "Edit Assignment" : "New Assignment");
 
 const form = ref<{
@@ -66,12 +51,12 @@ const form = ref<{
   notes: "",
 });
 
+const nextIdStatus = ref<NextIdStatus>("idle");
 const nextAvailableId = ref<number | null>(null);
 const isRangeFull = ref<boolean>(false);
-const loadingNext = ref(false);
 
 async function fetchNextId() {
-  loadingNext.value = true;
+  nextIdStatus.value = "loading";
   try {
     const res = await $fetch<{ nextAvailableId: number | null; isFull: boolean }>(
       `/api/ranges/${props.rangeId}/nextId`,
@@ -80,7 +65,7 @@ async function fetchNextId() {
     nextAvailableId.value = res.nextAvailableId;
     isRangeFull.value = res.isFull;
 
-    if (!isEditing.value && res.nextAvailableId !== null && !res.isFull) {
+    if (!isEditing.value && res.nextAvailableId !== null) {
       form.value.objectId = res.nextAvailableId;
     }
   }
@@ -89,19 +74,20 @@ async function fetchNextId() {
     isRangeFull.value = false;
   }
   finally {
-    loadingNext.value = false;
+    nextIdStatus.value = "done";
   }
 }
 
+const takenStatus = ref<TakenStatus>("idle");
 const takenTypes = ref<string[]>([]);
-const loadingTaken = ref(false);
 
 async function checkTakenTypes(objectId: number | undefined) {
   if (!objectId) {
+    takenStatus.value = "idle";
     takenTypes.value = [];
     return;
   }
-  loadingTaken.value = true;
+  takenStatus.value = "loading";
   try {
     const all = await $fetch<{ assignments: IdAssignment[] }>(`/api/assignments`, {
       query: {
@@ -110,14 +96,14 @@ async function checkTakenTypes(objectId: number | undefined) {
       },
     });
     takenTypes.value = (all.assignments ?? [])
-      .filter(a => a.status === "in_use" || a.status === "reserved")
-      .map(a => a.objectType);
+      .filter(assignment => assignment.status === "in_use" || assignment.status === "reserved")
+      .map(assignment => assignment.objectType);
   }
   catch {
     takenTypes.value = [];
   }
   finally {
-    loadingTaken.value = false;
+    takenStatus.value = "done";
   }
 }
 
@@ -125,6 +111,8 @@ let takenTimer: ReturnType<typeof setTimeout>;
 
 watch(() => form.value.objectId, (val) => {
   clearTimeout(takenTimer);
+  takenStatus.value = "idle";
+  takenTypes.value = [];
   takenTimer = setTimeout(checkTakenTypes, 400, val);
 });
 
@@ -144,18 +132,29 @@ const freeTypes = computed<IdAssignment["objectType"][]>(() =>
 );
 
 const showNextIdHint = computed(() =>
-  !isEditing.value
-  && !loadingNext.value
-  && (nextAvailableId.value !== null || isRangeFull.value),
+  !isEditing.value && nextIdStatus.value === "done",
+);
+
+const showNextIdLoading = computed(() =>
+  !isEditing.value && nextIdStatus.value === "loading",
 );
 
 const showTakenPanel = computed(() =>
-  !form.value.objectId
-  && (!loadingTaken.value || takenByOthers.value.length > 0),
+  !!form.value.objectId && takenStatus.value !== "idle",
 );
 
-watch(open, async (newVal) => {
-  if (!newVal) return;
+const showTakenContent = computed(() =>
+  takenStatus.value === "done",
+);
+
+watch(open, async (isOpen) => {
+  if (!isOpen) return;
+
+  nextIdStatus.value = "idle";
+  nextAvailableId.value = null;
+  isRangeFull.value = false;
+  takenStatus.value = "idle";
+  takenTypes.value = [];
 
   if (props.assignment) {
     form.value = {
@@ -188,7 +187,7 @@ watch(open, async (newVal) => {
       await fetchNextId();
     }
   }
-}, { immediate: true });
+});
 
 async function save() {
   if (
@@ -246,9 +245,12 @@ async function save() {
           notes: form.value.notes,
         },
       });
+
+      const assignedToName = mapUserIdToName.value[response.assignment.assignedTo];
+
       toast.add({
         title: "Assignment created",
-        description: `ID ${response.assignment.objectId} assigned to ${response.assignment.assignedTo}`,
+        description: `ID ${response.assignment.objectId} assigned to ${assignedToName ?? response.assignment.assignedTo}`,
         color: "success",
       });
     }
@@ -324,21 +326,23 @@ async function save() {
             v-if="nextAvailableId !== null"
             class="-mt-2 font-mono text-muted text-xs"
           >
-            ↳ Next ID with no assignments yet:
+            ↳ Next unused ID:
             <span class="font-semibold text-highlighted">{{ nextAvailableId }}</span>
           </p>
 
-          <p
+          <UAlert
             v-else-if="isRangeFull"
-            class="-mt-2 font-mono text-warning text-xs"
-          >
-            ↳ All numeric IDs in this range have at least one active assignment.
-            You can still assign a new object type to an existing ID.
-          </p>
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-alert-triangle"
+            title="Range is numerically full"
+            description="All IDs in this range have at least one active assignment. You can still add a new object type to an existing ID above."
+            class="-mt-2"
+          />
         </template>
 
         <p
-          v-else-if="!isEditing && loadingNext"
+          v-if="showNextIdLoading"
           class="flex items-center gap-1 -mt-2 font-mono text-muted text-xs"
         >
           <UIcon
@@ -350,11 +354,12 @@ async function save() {
 
         <div
           v-if="showTakenPanel"
+          v-auto-animate
           class="space-y-2 p-3 border border-default rounded-lg"
         >
           <div class="flex items-center gap-1.5">
             <UIcon
-              v-if="loadingTaken"
+              v-if="takenStatus === 'loading'"
               name="i-lucide-loader"
               class="text-muted text-base animate-spin"
             />
@@ -364,56 +369,61 @@ async function save() {
             </p>
           </div>
 
-          <div
-            v-if="!loadingTaken"
-            class="flex flex-wrap gap-1.5"
-          >
-            <span
-              v-for="t in takenByOthers"
-              :key="t"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px]"
-              :class="t === form.objectType
-                ? 'bg-error-100 text-error-700 ring-1 ring-error-300'
-                : 'bg-elevated text-muted'"
-            >
-              <UIcon
-                name="i-lucide-lock"
-                class="text-sm"
-              />
-              {{ t }}
-            </span>
-          </div>
-
-          <template v-if="!loadingTaken">
+          <template v-if="showTakenContent">
             <p
-              v-if="freeTypes.length"
+              v-if="takenByOthers.length === 0"
               class="font-mono text-muted text-xs"
             >
-              Still available:
-              <span class="text-success">{{ freeTypes.join(', ') }}</span>
+              No active assignments on this ID yet — all types are available.
             </p>
 
-            <p
-              v-else
-              class="font-mono text-warning text-xs"
-            >
-              All 13 object types are assigned to this ID.
-            </p>
+            <template v-else>
+              <div class="flex flex-wrap gap-1.5">
+                <span
+                  v-for="t in takenByOthers"
+                  :key="t"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px]"
+                  :class="t === form.objectType
+                    ? 'bg-error-100 text-error-700 ring-1 ring-error-300'
+                    : 'bg-elevated text-muted'"
+                >
+                  <UIcon
+                    name="i-lucide-lock"
+                    class="text-sm"
+                  />
+                  {{ t }}
+                </span>
+              </div>
+
+              <p
+                v-if="freeTypes.length"
+                class="font-mono text-muted text-xs"
+              >
+                Still available:
+                <span class="text-success">{{ freeTypes.join(', ') }}</span>
+              </p>
+
+              <p
+                v-else
+                class="font-mono text-warning text-xs"
+              >
+                All 13 object types are assigned to this ID.
+              </p>
+
+              <p
+                v-if="selectedTypeAlreadyTaken"
+                class="flex items-center gap-1 font-mono text-error text-xs"
+              >
+                <UIcon
+                  name="i-lucide-triangle-alert"
+                  class="text-sm"
+                />
+                {{ form.objectType }} is already active on ID {{ form.objectId }} — choose a different type.
+              </p>
+            </template>
           </template>
-
-          <p
-            v-if="selectedTypeAlreadyTaken"
-            class="flex items-center gap-1 font-mono text-error text-xs"
-          >
-            <UIcon
-              name="i-lucide-triangle-alert"
-              class="text-sm"
-            />
-            {{ form.objectType }} is already active on ID {{ form.objectId }} — pick a different type.
-          </p>
         </div>
 
-        <!-- Object Name -->
         <UFormField
           label="Object Name"
           required
@@ -451,7 +461,6 @@ async function save() {
           </UFormField>
         </div>
 
-        <!-- Notes -->
         <UFormField label="Notes">
           <UTextarea
             v-model="form.notes"

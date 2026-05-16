@@ -79,7 +79,10 @@ function onSaved() {
 </script>
 
 <template>
-  <div class="space-y-6 mx-auto px-4 py-8 max-w-6xl">
+  <div
+    v-auto-animate
+    class="space-y-6 mx-auto px-4 py-8 max-w-6xl"
+  >
     <AssignmentHeader @create="openNewAssignment" />
 
     <AssignmentSearchFilter

@@ -43,7 +43,31 @@ export default defineEventHandler(async (event) => {
 
   const { validateNoOverlap, auditOperation } = useIdLogic();
 
-  const { createNewRange } = useRangeQueries();
+  const { createNewRange, checkRangeOverlap } = useRangeQueries();
+
+  const {
+    hasConflict,
+    conflictingRanges,
+  } = await checkRangeOverlap(startId, endId);
+
+  if (hasConflict) {
+    const suggestedStartId = Math.max(...conflictingRanges.map(range => range.endId)) + 1;
+
+    throw createError({
+      statusCode: 409,
+      data: {
+        code: "RANGE_OVERLAP",
+        suggestedStartId,
+        conflictingRanges: conflictingRanges.map(range => ({
+          id: range.id,
+          name: range.name,
+          startId: range.startId,
+          endId: range.endId,
+        })),
+      },
+      message: `Range overlaps with: ${conflictingRanges.map(r => `${r.name} (${r.startId} - ${r.endId})`).join(", ")}`,
+    });
+  }
 
   await validateNoOverlap(startId, endId);
 

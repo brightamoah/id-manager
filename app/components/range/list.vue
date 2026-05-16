@@ -33,7 +33,7 @@ defineEmits<{
     <RangeCard
       v-for="range in ranges"
       :key="range.id"
-      :progress-color="progressColor(range.stats.percentUsed, range.status)"
+      :progress-color="progressColor(range.stats?.percentUsed ?? 0, range.status)"
       :range-badge-color="statusColor(range.status)"
       :range
       :deprecating="deprecatingId === range.id"

@@ -1,20 +1,4 @@
 export function useAssignmentFilter(table: TableType<IdAssignment>, data: DataType<AssignmentDataResponse>) {
-  const OBJECT_TYPES = [
-    "Table",
-    "Page",
-    "Codeunit",
-    "Report",
-    "Enum",
-    "Query",
-    "XmlPort",
-    "TableExtension",
-    "PageExtension",
-    "EnumExtension",
-    "Interface",
-    "PermissionSet",
-    "Other",
-  ];
-
   const typeItems = [
     { label: "All types", value: "all" },
     ...OBJECT_TYPES.map(t => ({ label: t, value: t })),
