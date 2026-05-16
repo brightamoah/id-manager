@@ -133,8 +133,6 @@ export const useRangeStore = defineStore("rangeStore", () => {
     }
     catch (error: any) {
       const errorData = error?.data;
-      console.log(errorData.statusCode);
-      console.log(errorData.data.code);
 
       if (errorData?.statusCode === 409 && errorData?.data?.code === "RANGE_OVERLAP") {
         overlapConflict.value = {
