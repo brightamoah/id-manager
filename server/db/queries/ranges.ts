@@ -88,6 +88,76 @@ export function useRangeQueries() {
    * percentUsed = used / total * 100
    * isFull      = no numeric ID in [startId, endId] has zero active rows
    */
+  async function getUsageStatsForRanges(ranges: IdRange[]): Promise<RangeUsageStats[]> {
+    if (ranges.length === 0) return [];
+
+    const rangeIds = ranges.map(range => range.id);
+
+    const allAssignments = await db.query.idAssignments.findMany({
+      where: {
+        rangeId: {
+          in: rangeIds,
+        },
+      },
+      columns: {
+        rangeId: true,
+        objectId: true,
+        status: true,
+      },
+    });
+
+    const assignmentsByRange = new Map<string, typeof allAssignments>();
+    for (const a of allAssignments) {
+      if (!assignmentsByRange.has(a.rangeId)) assignmentsByRange.set(a.rangeId, []);
+      assignmentsByRange.get(a.rangeId)!.push(a);
+    }
+
+    return ranges.map((range) => {
+      const assignments = assignmentsByRange.get(range.id) || [];
+      const total = range.endId - range.startId + 1 || 0;
+
+      const groupedById = new Map<number, Set<IdAssignment["status"]>>();
+
+      for (const assignment of assignments) {
+        if (!groupedById.has(assignment.objectId)) {
+          groupedById.set(assignment.objectId, new Set());
+        }
+        groupedById.get(assignment.objectId)?.add(assignment.status);
+      }
+
+      let usedCount = 0;
+      let releasedCount = 0;
+
+      for (const [_, statuses] of groupedById) {
+        const hasActive = statuses.has("in_use") || statuses.has("reserved");
+        if (hasActive) usedCount++;
+        else if (statuses.has("released")) releasedCount++;
+      }
+
+      const percentUsed = total > 0 ? Math.round((usedCount / total) * 100) : 0;
+
+      let nextAvailableId: number | null = null;
+      for (let id = range.startId; id <= range.endId; id++) {
+        const statuses = groupedById.get(id);
+        if (!statuses || (!statuses.has("in_use") && !statuses.has("reserved"))) {
+          nextAvailableId = id;
+          break;
+        }
+      }
+
+      return {
+        rangeId: range.id,
+        total,
+        used: usedCount,
+        released: releasedCount,
+        reserved: 0,
+        percentUsed,
+        nextAvailableId,
+        isFull: nextAvailableId === null,
+      };
+    });
+  }
+
   async function getRangeUsageStats(
     rangeId: string,
   ): Promise<RangeUsageStats> {
@@ -100,49 +170,8 @@ export function useRangeQueries() {
       });
     }
 
-    const allAssignments = await db.query.idAssignments.findMany({
-      where: { rangeId },
-      columns: {
-        objectId: true,
-        status: true,
-      },
-    });
-
-    const total = range.endId - range.startId + 1 || 0;
-
-    const groupedById = new Map<number, Set<IdAssignment["status"]>>();
-
-    for (const assignment of allAssignments) {
-      if (!groupedById.has(assignment.objectId)) {
-        groupedById.set(assignment.objectId, new Set());
-      }
-      groupedById.get(assignment.objectId)?.add(assignment.status);
-    }
-
-    let usedCount = 0;
-    let releasedCount = 0;
-
-    for (const [_, statuses] of groupedById) {
-      const hasActive = statuses.has("in_use") || statuses.has("reserved");
-
-      if (hasActive) usedCount++;
-
-      else if (statuses.has("released")) releasedCount++;
-    }
-
-    const percentUsed = total > 0 ? Math.round((usedCount / total) * 100) : 0;
-    const nextAvailableId = await getNextAvailableId(rangeId);
-
-    return {
-      rangeId,
-      total,
-      used: usedCount,
-      released: releasedCount,
-      reserved: 0,
-      percentUsed,
-      nextAvailableId,
-      isFull: nextAvailableId === null,
-    };
+    const [stats] = await getUsageStatsForRanges([range]);
+    return stats!;
   }
 
   const checkRangeOverlap = async (
@@ -275,6 +304,7 @@ export function useRangeQueries() {
     getAssignmentById,
     getAssignmentByRangeId,
     getRangeUsageStats,
+    getUsageStatsForRanges,
     checkRangeOverlap,
     checkDuplicatedId,
     logAudit,
@@ -285,5 +315,6 @@ export function useRangeQueries() {
     createAssignment,
     updateAssignment,
     updateAssignmentStatus,
+    getNextAvailableId,
   };
 }

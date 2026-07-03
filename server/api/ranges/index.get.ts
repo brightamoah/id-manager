@@ -10,16 +10,15 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  const { getAllIdRanges, getRangeUsageStats } = useRangeQueries();
+  const { getAllIdRanges, getUsageStatsForRanges } = useRangeQueries();
 
   const ranges = await getAllIdRanges();
+  const allStats = await getUsageStatsForRanges(ranges);
 
-  const rangesWithStats = await Promise.all(
-    ranges.map(async range => ({
-      ...range,
-      stats: await getRangeUsageStats(range.id),
-    })),
-  );
+  const rangesWithStats = ranges.map((range, index) => ({
+    ...range,
+    stats: allStats[index],
+  }));
 
   return {
     data: rangesWithStats,
