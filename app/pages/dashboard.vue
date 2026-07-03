@@ -16,8 +16,11 @@ const { mapUserIdToName } = useUsers();
 
 const rangesWithStats = computed<RangeWithStats[]>(() => response.value?.data ?? []);
 
+// --- Search & Filters ---
 const search = ref("");
 const statusFilter = ref<string | undefined>(undefined);
+const environmentFilter = ref<string | undefined>(undefined);
+const sortBy = ref<string>("name");
 
 const statusOptions = [
   { label: "All status", value: undefined },
@@ -26,17 +29,86 @@ const statusOptions = [
   { label: "Deprecated", value: "deprecated" },
 ];
 
+const environmentOptions = [
+  { label: "All environments", value: undefined },
+  { label: "Development", value: "dev" },
+  { label: "Test", value: "test" },
+  { label: "Production", value: "prod" },
+];
+
+const sortOptions = [
+  { label: "Name (A–Z)", value: "name" },
+  { label: "Usage %", value: "usage" },
+  { label: "Date created", value: "created" },
+  { label: "ID range", value: "startId" },
+];
+
+const activeFilterCount = computed(() => {
+  let count = 0;
+  if (search.value) count++;
+  if (statusFilter.value) count++;
+  if (environmentFilter.value) count++;
+  return count;
+});
+
+function clearFilters() {
+  search.value = "";
+  statusFilter.value = undefined;
+  environmentFilter.value = undefined;
+}
+
 const filtered = computed(() => {
-  return rangesWithStats.value.filter((r) => {
+  let list = rangesWithStats.value.filter((r) => {
     const q = search.value.toLowerCase();
     const matchQ = !q
       || r.name.toLowerCase().includes(q)
-      || mapUserIdToName.value[r.owner]?.toLowerCase().includes(q);
+      || mapUserIdToName.value[r.owner]?.toLowerCase().includes(q)
+      || r.description?.toLowerCase().includes(q)
+      || r.publisher?.toLowerCase().includes(q)
+      || r.environment?.toLowerCase().includes(q)
+      || String(r.startId).includes(q)
+      || String(r.endId).includes(q);
     const matchS = !statusFilter.value || r.status === statusFilter.value;
-    return matchQ && matchS;
+    const matchE = !environmentFilter.value || r.environment === environmentFilter.value;
+    return matchQ && matchS && matchE;
   });
+
+  // Sort
+  const key = sortBy.value;
+  list = [...list].sort((a, b) => {
+    if (key === "name") return a.name.localeCompare(b.name);
+    if (key === "usage") return b.stats.percentUsed - a.stats.percentUsed;
+    if (key === "created") return new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime();
+    if (key === "startId") return a.startId - b.startId;
+    return 0;
+  });
+
+  return list;
 });
 
+const page = ref(1);
+const itemsPerPage = 5;
+
+const totalPages = computed(() => Math.ceil(filtered.value.length / itemsPerPage));
+
+const paginatedRanges = computed(() => {
+  const start = (page.value - 1) * itemsPerPage;
+  return filtered.value.slice(start, start + itemsPerPage);
+});
+
+const showingFrom = computed(() => {
+  if (!filtered.value.length) return 0;
+  return (page.value - 1) * itemsPerPage + 1;
+});
+
+const showingTo = computed(() => Math.min(page.value * itemsPerPage, filtered.value.length));
+
+// Reset page when filters change
+watch([search, statusFilter, environmentFilter, sortBy], () => {
+  page.value = 1;
+});
+
+// --- Stats ---
 const totalStats = computed(() => {
   const all = rangesWithStats.value;
   return {
@@ -80,6 +152,7 @@ const cardItems = computed<CardItem[]>(() => [
   },
 ]);
 
+// --- Range Store ---
 const store = useRangeStore();
 
 const {
@@ -144,37 +217,26 @@ const {
       />
     </div>
 
-    <div class="flex gap-2">
-      <UInput
-        v-model="search"
-        placeholder="Search by name or owner…"
-        icon="i-lucide-search"
-        size="lg"
-        class="flex-1"
-      />
-
-      <USelectMenu
-        v-model="statusFilter"
-        :items="statusOptions"
-        size="lg"
-        placeholder="Filter by status"
-        value-key="value"
-        label-key="label"
-        class="w-40 sm:w-80 cursor-pointer"
-        clear
-        :ui="{
-          item: 'cursor-pointer',
-        }"
-      />
-
-      <AppRefresh
-        :is-mobile
-        :can-resend
-        :cool-down-time
-        :refresh-is-loading
-        :handle-refresh
-      />
-    </div>
+    <RangeSearchFilter
+      v-model:search="search"
+      v-model:status-filter="statusFilter"
+      v-model:environment-filter="environmentFilter"
+      v-model:sort-by="sortBy"
+      :status-options="statusOptions"
+      :environment-options="environmentOptions"
+      :sort-options="sortOptions"
+      :active-filter-count="activeFilterCount"
+      @clear="clearFilters"
+    >
+      <template #refresh>
+        <AppRefresh
+          :can-resend
+          :cool-down-time
+          :refresh-is-loading
+          :handle-refresh
+        />
+      </template>
+    </RangeSearchFilter>
 
     <div
       v-if="status === 'pending'"
@@ -198,22 +260,40 @@ const {
       No ranges found
     </div>
 
-    <div
-      v-else
-      v-auto-animate
-      class="space-y-3"
-    >
-      <RangeCard
-        v-for="range in filtered"
-        :key="range.id"
-        :range="range"
-        :deprecating="deprecatingId === range.id"
-        :progress-color="progressColor(range.stats.percentUsed, range.status)"
-        :range-badge-color="statusColor(range.status)"
-        @edit="openEdit(range)"
-        @deprecate="deprecateItem(range)"
-      />
-    </div>
+    <template v-else>
+      <div class="flex justify-between items-center text-muted text-sm">
+        <span>
+          Showing {{ showingFrom }}–{{ showingTo }} of {{ filtered.length }} range{{ filtered.length !== 1 ? 's' : '' }}
+        </span>
+      </div>
+
+      <div
+        v-auto-animate
+        class="space-y-3"
+      >
+        <RangeCard
+          v-for="range in paginatedRanges"
+          :key="range.id"
+          :range="range"
+          :deprecating="deprecatingId === range.id"
+          :progress-color="progressColor(range.stats.percentUsed, range.status)"
+          :range-badge-color="statusColor(range.status)"
+          @edit="openEdit(range)"
+          @deprecate="deprecateItem(range)"
+        />
+      </div>
+
+      <div
+        v-if="totalPages > 1"
+        class="flex justify-center pt-2"
+      >
+        <UPagination
+          v-model:page="page"
+          :total="filtered.length"
+          :items-per-page="itemsPerPage"
+        />
+      </div>
+    </template>
 
     <RangeModal
       v-model:state="form"

@@ -2,18 +2,25 @@
 defineProps<{
   typeItems: { label: string; value: string }[];
   statusItems: { label: string; value: string }[];
+  rangeItems?: { label: string; value: string | undefined }[];
+  activeFilterCount?: number;
 }>();
 
-const search = defineModel("search", { default: "", required: true });
-const typeFilter = defineModel("typeFilter", { default: "", required: true });
-const statusFilter = defineModel("statusFilter", { default: "", required: true });
+const emit = defineEmits<{
+  clear: [];
+}>();
+
+const search = defineModel<string>("search", { default: "", required: true });
+const typeFilter = defineModel<string>("typeFilter", { default: "", required: true });
+const statusFilter = defineModel<string>("statusFilter", { default: "", required: true });
+const rangeFilter = defineModel<string | undefined>("rangeFilter", { default: undefined });
 </script>
 
 <template>
-  <div class="gap-3 grid grid-cols-1 md:grid-cols-3">
+  <div class="space-y-3">
     <UInput
       v-model="search"
-      placeholder="Search by name, type, or assignee…"
+      placeholder="Search by name, type, ID, or assignee…"
       leading-icon="i-lucide-search"
       size="lg"
     >
@@ -25,41 +32,59 @@ const statusFilter = defineModel("statusFilter", { default: "", required: true }
           color="neutral"
           size="sm"
           class="sm:-mr-2 cursor-pointer"
-          @click="search = ''"
+          @click="() => { search = '' }"
         />
       </template>
     </UInput>
 
-    <USelectMenu
-      v-model="typeFilter"
-      :items="typeItems"
-      placeholder="Filter by type"
-      value-key="value"
-      label-key="label"
-      size="lg"
-      class="cursor-pointer"
-      clear
-      :ui="{
-        item: 'cursor-pointer',
-      }"
-    />
+    <div class="flex flex-wrap items-center gap-2">
+      <USelectMenu
+        v-model="typeFilter"
+        :items="typeItems"
+        placeholder="Type"
+        value-key="value"
+        label-key="label"
+        size="md"
+        class="w-36 sm:w-44 cursor-pointer"
+        clear
+        :ui="{ item: 'cursor-pointer' }"
+      />
 
-    <USelectMenu
-      v-model="statusFilter"
-      :items="statusItems"
-      placeholder="Filter by status"
-      value-key="value"
-      label-key="label"
-      size="lg"
-      class="cursor-pointer"
-      clear
-      :ui="{
-        item: 'cursor-pointer',
-      }"
-    />
+      <USelectMenu
+        v-model="statusFilter"
+        :items="statusItems"
+        placeholder="Status"
+        value-key="value"
+        label-key="label"
+        size="md"
+        class="w-36 sm:w-44 cursor-pointer"
+        clear
+        :ui="{ item: 'cursor-pointer' }"
+      />
+
+      <USelectMenu
+        v-if="rangeItems?.length"
+        v-model="rangeFilter"
+        :items="rangeItems"
+        placeholder="Range"
+        value-key="value"
+        label-key="label"
+        size="md"
+        class="w-40 sm:w-48 cursor-pointer"
+        clear
+        :ui="{ item: 'cursor-pointer' }"
+      />
+
+      <UButton
+        v-if="activeFilterCount && activeFilterCount > 0"
+        variant="soft"
+        color="neutral"
+        size="md"
+        icon="i-lucide-filter-x"
+        :label="`Clear (${activeFilterCount})`"
+        class="cursor-pointer"
+        @click="emit('clear')"
+      />
+    </div>
   </div>
 </template>
-
-<style scoped>
-
-</style>

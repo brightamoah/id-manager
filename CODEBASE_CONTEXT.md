@@ -303,8 +303,20 @@ Range stats are computed from active assignments:
 
 ### Dashboard
 
-The dashboard page fetches ranges and renders summary cards, a filter bar, and a list of range cards.
-Each range card can expand to load assignments for that range from `/api/assignments/:id`.
+The dashboard page fetches ranges from `/api/ranges` and renders:
+- Summary stat cards (total, active, assigned, available)
+- A search bar that matches against name, owner, description, publisher, environment, and ID range values
+- Filter dropdowns: status (active/full/deprecated) and environment (dev/test/prod)
+- A sort selector (name, usage %, date created, ID range)
+- A paginated list of range cards (10 per page) with `UPagination`
+- A "Clear filters" button with active filter count badge
+
+Each range card displays:
+- ID range, name, status badge, environment badge
+- Owner, publisher, created-by, and relative creation timestamp
+- Usage progress bar with breakdown (in use / reserved / released)
+- A colored left border based on status (green=active, amber=full, gray=deprecated)
+- Expandable assignment table loaded from `/api/assignments/:id`
 
 ### Assignments page
 
@@ -313,12 +325,28 @@ The assignments page fetches:
 - all assignments for the table
 
 It then applies local search and filters before rendering the assignment table.
+Filter dropdowns include: type, status, and range (populated from available ranges).
+The search matches against name, type, assignee, status, ID, and notes.
+Results are paginated (20 per page) with `UPagination`.
+A "Clear filters" button with active filter count resets all filters.
 The table supports grouped rows and opens assignment editing UI from the table state.
 
 ### Login and logout
 
 - Login page: OAuth buttons redirect to the provider handlers.
 - Logout page: clears the local session, clears Nuxt data, and returns to `/`.
+
+## Error Handling
+
+A central error handler at `server/utils/errorHandler.ts` intercepts all unhandled Nitro errors.
+It formats them as JSON with `statusCode`, `statusMessage`, `message`, and the Cloudflare `cf-ray` ID.
+Stack traces are included only in development. Registered via `nitro.errorHandler` in `nuxt.config.ts`.
+
+## Cloudflare Workers Considerations
+
+- Icon bundle mode is set to `serverBundle: "auto"` in `nuxt.config.ts` to avoid exceeding the Workers size limit (3 MiB free tier). This bundles only the icons actually used in the codebase.
+- The `$development` environment override sets `nitro.preset` to `"nitro-dev"` so the Cloudflare preset is only used in production builds.
+- Range usage stats are computed in a single bulk query (`getUsageStatsForRanges`) rather than per-range to stay under the Workers subrequest limit (50 per invocation).
 
 ## Environment Variables
 
@@ -343,3 +371,4 @@ These are wired into `nuxt.config.ts` under `runtimeConfig`.
 - `server/api/dashboard.get.ts`, `server/api/audit.get.ts`, and `server/api/sync.post.ts` currently return placeholder text and are not part of the main UI flow yet.
 - The main canonical assignment-by-range endpoint used by the UI is `/api/assignments/:id`.
 - The app currently centers the user experience around range management, assignment tracking, and auditability rather than a general-purpose admin console.
+- The components `range/stats.vue` and `range/filters.vue` were removed as dead code — the dashboard uses `AppDashboardCard` and inline filters instead.

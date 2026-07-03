@@ -20,6 +20,31 @@ const loadingAssignments = ref(false);
 
 const tableComponent = useTemplateRef("table");
 
+const envLabel = computed(() => {
+  const map: Record<string, string> = { dev: "Dev", test: "Test", prod: "Prod" };
+  return map[props.range.environment] || props.range.environment;
+});
+
+const envColor = computed<ColorType>(() => {
+  if (props.range.environment === "prod") return "error";
+  if (props.range.environment === "test") return "warning";
+  return "info";
+});
+
+const createdAtFormatted = computed(() => {
+  if (!props.range.createdAt) return null;
+  const date = new Date(props.range.createdAt);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Yesterday";
+  if (diffDays < 30) return `${diffDays}d ago`;
+  if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+  return `${Math.floor(diffDays / 365)}y ago`;
+});
+
 async function toggleExpand() {
   expanded.value = !expanded.value;
   if (expanded.value && !assignments.value.length) {
@@ -94,21 +119,70 @@ async function onAssignmentSaved() {
           >
             {{ range.status }}
           </UBadge>
+
+          <UBadge
+            v-if="range.environment"
+            :color="envColor"
+            variant="outline"
+            size="sm"
+          >
+            {{ envLabel }}
+          </UBadge>
         </div>
 
-        <div class="flex items-center gap-3 mt-0.5 font-mono text-muted text-xs">
+        <div class="flex flex-wrap items-center gap-3 mt-0.5 text-muted text-xs">
           <span class="flex items-center gap-1">
             <UIcon
               name="i-lucide-users"
-              class="size-4"
+              class="size-3.5"
             />
             {{ mapUserIdToName[range.owner] || range.owner }}
           </span>
 
           <span
+            v-if="range.publisher"
+            class="flex items-center gap-1"
+          >
+            <UIcon
+              name="i-lucide-building-2"
+              class="size-3.5"
+            />
+            {{ range.publisher }}
+          </span>
+
+          <span
+            v-if="range.createdBy"
+            class="flex items-center gap-1"
+          >
+            <UIcon
+              name="i-lucide-user-plus"
+              class="size-3.5"
+            />
+            {{ mapUserIdToName[range.createdBy] || 'Unknown' }}
+          </span>
+
+          <span
+            v-if="createdAtFormatted"
+            class="flex items-center gap-1"
+          >
+            <UIcon
+              name="i-lucide-clock"
+              class="size-3.5"
+            />
+            {{ createdAtFormatted }}
+          </span>
+
+          <span
             v-if="range.description"
             class="max-w-xs truncate"
-          >{{ range.description }}</span>
+            :title="range.description"
+          >
+            <UIcon
+              name="i-lucide-message-square"
+              class="inline -mt-0.5 size-3.5"
+            />
+            {{ range.description }}
+          </span>
         </div>
       </div>
 
@@ -153,7 +227,7 @@ async function onAssignmentSaved() {
 
     <div class="px-4 pb-1">
       <div class="flex justify-between mb-1 font-mono text-[10px] text-muted">
-        <span>{{ range.stats.percentUsed }}% used · {{ range.stats.total.toLocaleString() }} total IDs</span>
+        <span>{{ range.stats.used }} of {{ range.stats.total.toLocaleString() }} IDs used ({{ range.stats.percentUsed }}%)</span>
 
         <span>
           {{ range.stats.used }} in use ·
@@ -232,7 +306,3 @@ async function onAssignmentSaved() {
     />
   </div>
 </template>
-
-<style scoped>
-
-</style>

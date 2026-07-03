@@ -107,9 +107,12 @@ export function useRangeQueries() {
     });
 
     const assignmentsByRange = new Map<string, typeof allAssignments>();
-    for (const a of allAssignments) {
-      if (!assignmentsByRange.has(a.rangeId)) assignmentsByRange.set(a.rangeId, []);
-      assignmentsByRange.get(a.rangeId)!.push(a);
+
+    for (const assignment of allAssignments) {
+      if (!assignmentsByRange.has(assignment.rangeId)) {
+        assignmentsByRange.set(assignment.rangeId, []);
+      }
+      assignmentsByRange.get(assignment.rangeId)!.push(assignment);
     }
 
     return ranges.map((range) => {

@@ -5,7 +5,6 @@ const {
   variant = "outline",
   color = "primary",
   label = "Refresh",
-  isMobile,
   refreshIsLoading,
   canResend,
   coolDownTime,
@@ -18,11 +17,9 @@ const {
   color?: ColorType;
   handleRefresh: () => Promise<boolean>;
   label?: string;
-  isMobile?: boolean;
 }>();
 
 const buttonLabel = computed(() => {
-  if (isMobile) return "";
   return refreshIsLoading
     ? `${label}...`
     : canResend
@@ -37,11 +34,11 @@ const buttonLabel = computed(() => {
     icon="i-lucide-refresh-cw"
     :loading="refreshIsLoading"
     :disabled="!canResend || refreshIsLoading"
-    size="lg"
+    size="md"
     :variant
     :color
     class="justify-center items-center md:min-w-[13ch] tabular-nums text-center cursor-pointer"
-    @click="handleRefresh()"
+    @click="() => { handleRefresh() }"
   />
 </template>
 
