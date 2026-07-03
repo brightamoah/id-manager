@@ -21,6 +21,10 @@ export default defineNuxtConfig({
 
   },
 
+  icon: {
+    serverBundle: "local",
+  },
+
   css: [
     "~/assets/css/main.css",
   ],
@@ -38,6 +42,7 @@ export default defineNuxtConfig({
   },
 
   nitro: {
+    errorHandler: "./server/utils/errorHandler.ts",
     preset: "cloudflare-module",
     cloudflare: {
       deployConfig: true,

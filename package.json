@@ -34,6 +34,9 @@
   "devDependencies": {
     "@antfu/eslint-config": "^9.1.0",
     "@formkit/auto-animate": "^0.9.0",
+    "@iconify-json/logos": "^1.2.11",
+    "@iconify-json/lucide": "^1.2.115",
+    "@iconify-json/simple-icons": "^1.2.88",
     "@types/node": "^26.1.0",
     "drizzle-kit": "1.0.0-beta.22",
     "eslint": "^10.6.0",
