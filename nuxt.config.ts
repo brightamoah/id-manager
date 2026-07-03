@@ -14,6 +14,13 @@ export default defineNuxtConfig({
     "@pinia/nuxt",
   ],
 
+  $development: {
+    nitro: {
+      preset: "nitro-dev",
+    },
+
+  },
+
   css: [
     "~/assets/css/main.css",
   ],
@@ -27,6 +34,20 @@ export default defineNuxtConfig({
   eslint: {
     config: {
       standalone: false,
+    },
+  },
+
+  nitro: {
+    preset: "cloudflare-module",
+    cloudflare: {
+      deployConfig: true,
+      nodeCompat: true,
+    },
+
+    rollupConfig: {
+      external: [
+        "cloudflare:sockets",
+      ],
     },
   },
 
