@@ -12,11 +12,7 @@
   },
   "routes": [
     {
-      "pattern": "code-manager.app",
-      "custom_domain": true
-    },
-    {
-      "pattern": "app.code-manager.app",
+      "pattern": "id-manager.kayanest.app",
       "custom_domain": true
     }
   ],
