@@ -22,7 +22,7 @@ export default defineNuxtConfig({
   },
 
   icon: {
-    serverBundle: "local",
+    serverBundle: "auto",
   },
 
   css: [
